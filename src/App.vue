@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, setDoc, collection, onSnapshot, 
-    updateDoc, increment, query, orderBy, limit, serverTimestamp } from "firebase/firestore";
+    updateDoc, increment, query, orderBy, limit, serverTimestamp, addDoc } from "firebase/firestore";
 
 // === IMPORTS DOS COMPONENTES ===
 import NavBar from './components/NavBar.vue';
@@ -12,275 +12,404 @@ import DashboardHome from './components/DashboardHome.vue';
 import ReceitasManager from './components/ReceitasManager.vue';
 import DespesasManager from './components/DespesasManager.vue';
 import MetasManager from './components/MetasManager.vue';
-
-// === IMPORTS DE TERCEIROS ===
 import confetti from 'canvas-confetti';
 
-// === CLASSE PARA NÓ DA LISTA ENCADEADA ===
-class LogNode {
-    constructor(mensagem, pontos) {
-        this.mensagem = mensagem;
-        this.pontos = pontos;
-        this.data = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        this.proximo = null; // O "ponteiro" para o próximo nó
-    }
-}
+// === CONFIGURAÇÃO ===
+const appId = 'gefiga_v1'; 
 
 // === ESTADO GLOBAL ===
 const user = ref(null);
 const pontuacao = ref(0);
 const currentView = ref('home');
-const appId = 'gefiga_v1'; // Garanta que este ID é o mesmo usado antes
-
-// Dados centralizados
 const receitas = ref([]);
 const despesas = ref([]);
 const metas = ref([]);
+const carregando = ref(true);
 
-// === CÁLCULO DO SALDO (Com correção de tipos) ===
-const saldoGlobal = computed(() => {
-    // O Number() garante que não dê erro se vier como texto do banco
-    const totalRec = receitas.value.reduce((acc, r) => acc + Number(r.valor || 0), 0);
-    const totalDesp = despesas.value.reduce((acc, d) => acc + Number(d.valor || 0), 0);
-    const totalInvestidoMetas = metas.value.reduce((acc, m) => acc + Number(m.valorAtual || 0), 0);
-
-    return totalRec - totalDesp - totalInvestidoMetas;
-});
-
-// Lista Encadeada para Log de Conquistas
-const logConquistas = ref(null); // 
+// Estado Visual
+const showHistory = ref(false);
 const toastAtivo = ref(false);
 const toastMsg = ref('');
 
-// Define o que esse componente recebe do pai (App.vue)
-const props = defineProps({
-    user: Object,
-    pontuacao: Number,
-    currentView: String,
-    nivel: Number,
-    progressoNivel: Number
+// === LISTA ENCADEADA (Lógica Acadêmica) ===
+// Mantemos a estrutura de nó para cumprir requisito de TCC
+class LogNode {
+    constructor(data, id) {
+        this.id = id;
+        this.mensagem = data.descricao || data.mensagem; // Aceita ambos os campos
+        this.pontos = data.pontos;
+        // Se vier timestamp do firebase, converte. Se não, usa hora atual.
+        //this.data = data.data?.toDate ? data.data.toDate().toLocaleTimeString('pt-BR') : (data.hora || 'Agora'); 
+        this.data = data.data?.toDate ? data.data.toDate().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : 'Agora';
+        this.proximo = null;
+    }
+}
+
+const headHistorico = ref(null); // Cabeça da Lista Encadeada
+
+// Converte a Lista Encadeada em Array para o v-for do Template
+const historyArray = computed(() => {
+    const arr = [];
+    let current = headHistorico.value;
+    while (current) {
+        arr.push(current);
+        current = current.proximo;
+    }
+    return arr;
 });
 
-// Define os eventos que esse componente envia para o pai
-const emit = defineEmits(['navigate', 'logout', 'open-history']);
-
-// Lógica de Nivelamento
-const nivel = computed(() => Math.floor((props.pontuacao || 0) / 100) + 1);
-const progressoNivel = computed(() => (props.pontuacao || 0) % 100);
-
-// === LÓGICA DE BANCO DE DADOS ===
-onMounted(() => {
-    onAuthStateChanged(auth, async (u) => {
-        user.value = u;
-        if (u) {
-            // Carregar Pontuação
-            const userRef = doc(db, 'artifacts', appId, 'users', u.uid);
-            const snap = await getDoc(userRef);
-            if (snap.exists()) {
-                pontuacao.value = snap.data().pontuacao || 0;
-            } else {
-                await setDoc(userRef, { email: u.email, pontuacao: 0 });
-            }
-
-            // Ligar os "ouvidos" no banco
-            setupListeners(u.uid);
-        } else {
-            // Limpar tudo ao sair
-            receitas.value = [];
-            despesas.value = [];
-            metas.value = [];
-        }
-    });
+// === CÁLCULO DO SALDO ===
+const saldoGlobal = computed(() => {
+    const totalRec = receitas.value.reduce((acc, r) => acc + Number(r.valor || 0), 0);
+    const totalDesp = despesas.value.reduce((acc, d) => acc + Number(d.valor || 0), 0);
+    // Nota: Metas geralmente não subtraem do saldo disponível até que se invista nelas.
+    // Se 'valorAtual' for dinheiro guardado, talvez deva subtrair. Ajuste conforme sua regra de negócio.
+    // Por enquanto, saldo disponível costuma ser Receita - Despesa.
+    return totalRec - totalDesp; 
 });
 
-// Configura os listeners do Firestore para atualizações em tempo real
-const setupListeners = (uid) => {
-    const basePath = ['artifacts', appId, 'users', uid];
-
-    // Receitas
-    onSnapshot(collection(db, ...basePath, 'receitas'), (snap) => {
-        receitas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    });
-    // Despesas
-    onSnapshot(collection(db, ...basePath, 'despesas'), (snap) => {
-        despesas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    });
-    // Metas
-    onSnapshot(collection(db, ...basePath, 'metas'), (snap) => {
-        metas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    });
-    onSnapshot(query(collection(db, ...basePath, 'conquistas'), orderBy('timestamp', 'desc'), limit(10)), (snap) => {
-        // 1. Começamos com a lista vazia na memória
-        logConquistas.value = null;
-        let ultimoNoCriado = null;
-
-        // 2. Percorremos os documentos que vieram do banco (já ordenados do mais novo para o mais antigo)
-        snap.docs.forEach((docSnap) => {
-            const dados = docSnap.data();
-            const novoNo = new LogNode(dados.mensagem, dados.pontos);
-            novoNo.data = dados.data; // Mantém a hora original salva no banco
-
-            // 3. A mágica da Lista Encadeada:
-            if (logConquistas.value === null) {
-                // Se for o primeiro item do banco (o mais recente), ele vira a "cabeça" da lista
-                logConquistas.value = novoNo;
-            } else {
-                // Se já temos uma cabeça, o nó anterior aponta para este novo nó
-                ultimoNoCriado.proximo = novoNo;
-            }
-            ultimoNoCriado = novoNo;
-        });
-    });
-};
-
-const handleLogout = () => {
-    signOut(auth);
-    currentView.value = 'home';
-};
-
-// Adiciona pontos com lógica de lista encadeada
-const handleAddPoints = async (valor = 1, motivo = "Ação realizada") => {
-    if (!user.value) return;
-
-    // Lógica visual do Toast
-    toastMsg.value = `+${valor} pts: ${motivo}`;
-    toastAtivo.value = true;
-    setTimeout(() => toastAtivo.value = false, 3000);
-
-    // Lógica da Lista Encadeada (Inserção no Início - O(1))
-    const novoLog = new LogNode(motivo, valor);
-    novoLog.proximo = logConquistas.value; // O novo nó aponta para o antigo topo
-    logConquistas.value = novoLog; // A cabeça da lista agora é o novo nó
-
-    // PERSISTÊNCIA: Salva a conquista no Firebase
-    const conquistasCol = collection(db, 'artifacts', appId, 'users', user.value.uid, 'conquistas');
-    await addDoc(conquistasCol, {
-        mensagem: motivo,
-        pontos: valor,
-        data: new Date().toLocaleTimeString('pt-BR'),
-        timestamp: serverTimestamp() // Importante para ordenar depois
-    });
-
-    // Atualização da pontuação e Firebase
-    pontuacao.value += valor;
-    await updateDoc(doc(db, 'artifacts', appId, 'users', user.value.uid), {
-        pontuacao: increment(valor)
-    });
+// === AÇÕES ===
+const handleLogout = async () => {
+    await signOut(auth);
+    currentView.value = 'home'; 
+    receitas.value = []; despesas.value = []; metas.value = [];
 };
 
 const navigateTo = (viewName) => {
     currentView.value = viewName;
 };
 
-// ALGORITMO DE PERCURSO DE LISTA ENCADEADA
-const historyArray = computed(() => {
-    const tempArray = [];
-    let current = logConquistas.value; // Começa no topo
+const handleAddPoints = async (pts, descricao) => {
+    if (!user.value) return;
 
-    while (current !== null) {
-        tempArray.push({
-            mensagem: current.mensagem,
-            pontos: current.pontos,
-            data: current.data
+    // Garante que pts é um número, para evitar o bug do "24Registrou..."
+    const pontosNumericos = Number(pts);
+
+    // Feedback Visual Imediato
+    toastMsg.value = `+${pontosNumericos} pts: ${descricao}`;
+    toastAtivo.value = true;
+    setTimeout(() => toastAtivo.value = false, 3000);
+    
+    // Efeito Sonoro/Visual
+    if (pontosNumericos > 0) dispararCelebracao();
+
+    try {
+        // 1. Salva no Firestore
+        const conquistasRef = collection(db, "artifacts", appId, "users", user.value.uid, "conquistas");
+
+        await addDoc(conquistasRef, {
+            descricao: descricao,
+            pontos: pontosNumericos,
+            data: serverTimestamp()
         });
-        current = current.proximo; // O pulo para o próximo nó (o segredo da lista)
-    }
-    return tempArray;
-});
 
-const showHistory = ref(false);
+        // 2. Atualiza Pontuação Global
+        const userRef = doc(db, "artifacts", appId, "users", user.value.uid);
+        await updateDoc(userRef, { pontuacao: increment(pontosNumericos) });
+        
+        // Atualiza localmente para feedback instantâneo (opcional, pois o listener já fará isso)
+        pontuacao.value += pontosNumericos;
 
-// O VIGIA (Observer Pattern)
-watch(nivel, (novoNivel, nivelAntigo) => {
-    // Só dispara se o nível REALMENTE subiu (evita disparar ao carregar o app)
-    if (nivelAntigo !== undefined && novoNivel > nivelAntigo) {
-        dispararCelebracao();
+    } catch (e) {
+        console.error("Erro ao salvar pontos:", e);
     }
-});
+};
 
 const dispararCelebracao = () => {
-    // Configuração do "tiro" de confetes
     confetti({
-        particleCount: 150,
+        particleCount: 100,
         spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#4f46e5', '#fbbf24', '#22c55e'] // Cores do seu projeto (Índigo, Amarelo, Verde)
+        origin: { y: 0.7 },
+        colors: ['#4f46e5', '#fbbf24']
+    });
+};
+
+// === LISTENERS DO FIREBASE ===
+let unsubscribeHistory = null;
+
+const setupListeners = (uid) => {
+    carregando.value = true;
+    
+    // Variáveis de controle
+    let checkReceitas = false;
+    let checkDespesas = false;
+    let checkMetas = false;
+
+    // Função que verifica se tudo terminou (independente de erro ou sucesso)
+    const checkDone = () => {
+        if (checkReceitas && checkDespesas && checkMetas) {
+            carregando.value = false;
+        }
+    };
+
+    // === CORREÇÃO 2: Caminhos explícitos com 5 segmentos ===
+    // Caminho: artifacts (1) -> gefiga_v1 (2) -> users (3) -> UID (4) -> receitas (5) = ÍMPAR (Correto!)
+
+    // 1. Receitas
+    onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'receitas'), (snap) => {
+        receitas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        checkReceitas = true; 
+        checkDone();
+    }, (error) => { 
+        console.error("Erro ao carregar Receitas:", error); 
+        checkReceitas = true; // Marca como feito para liberar o loading
+        checkDone(); 
     });
 
-    // Se quiser um som, você pode carregar um áudio discreto aqui
-    const audio = new Audio('/level-up.mp3'); // O arquivo deve estar na pasta 'public'
-    audio.volume = 0.5;
-    audio.play().catch(e => console.log("Áudio bloqueado pelo navegador"));
+    // 2. Despesas
+    onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'despesas'), (snap) => {
+        despesas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        checkDespesas = true; 
+        checkDone();
+    }, (error) => { 
+        console.error("Erro ao carregar Despesas:", error); 
+        checkDespesas = true; 
+        checkDone(); 
+    });
+
+    // 3. Metas
+    onSnapshot(collection(db, 'artifacts', appId, 'users', uid, 'metas'), (snap) => {
+        metas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        checkMetas = true; 
+        checkDone();
+    }, (error) => { 
+        console.error("Erro ao carregar Metas:", error); 
+        checkMetas = true; 
+        checkDone(); 
+    });
+
+    // 4. Histórico (Conquistas)
+    if (unsubscribeHistory) unsubscribeHistory();
+    
+    // Nota: Aqui também usamos o caminho completo para a query
+    const qHistory = query(
+        collection(db, "artifacts", appId, "users", uid, "conquistas"), 
+        orderBy("data", "desc"), 
+        limit(20)
+    );
+
+    unsubscribeHistory = onSnapshot(qHistory, (snapshot) => {
+        headHistorico.value = null;
+        let tail = null;
+        snapshot.docs.forEach(doc => {
+            const node = new LogNode(doc.data(), doc.id);
+            if (!headHistorico.value) { headHistorico.value = node; tail = node; } 
+            else { tail.proximo = node; tail = node; }
+        });
+    }, (e) => console.error("Erro Histórico:", e));
 };
+
+/*
+const setupListeners = (uid) => {
+    carregando.value = true;
+    const baseRef = collection(db, 'artifacts', appId, 'users', uid);
+
+    // Variáveis de controle para saber quando tudo terminou
+    let carregouReceitas = false;
+    let carregouDespesas = false;
+    let carregouMetas = false;
+
+    // Função auxiliar para verificar se podemos liberar a tela
+    const verificarFimCarregamento = () => {
+        if (carregouReceitas && carregouDespesas && carregouMetas) {
+            carregando.value = false;
+        }
+    };
+
+    // 1. Receitas
+    onSnapshot(collection(baseRef, 'receitas'), (snap) => {
+        receitas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        carregouReceitas = true;
+        verificarFimCarregamento();
+    }, (error) => {
+        console.error("Erro em Receitas:", error);
+        carregouReceitas = true; // Marca como "concluído" (mesmo com erro) para não travar a tela
+        verificarFimCarregamento();
+    });
+
+    // 2. Despesas
+    onSnapshot(collection(baseRef, 'despesas'), (snap) => {
+        despesas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        carregouDespesas = true;
+        verificarFimCarregamento();
+    }, (error) => {
+        console.error("Erro em Despesas:", error);
+        carregouDespesas = true;
+        verificarFimCarregamento();
+    });
+
+    // 3. Metas
+    onSnapshot(collection(baseRef, 'metas'), (snap) => {
+        metas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        carregouMetas = true;
+        verificarFimCarregamento();
+    }, (error) => {
+        console.error("Erro em Metas:", error);
+        carregouMetas = true;
+        verificarFimCarregamento();
+    });
+
+    // 4. Histórico (Este não trava o carregamento principal)
+    if (unsubscribeHistory) unsubscribeHistory();
+    const qHistory = query(collection(baseRef, "conquistas"), orderBy("data", "desc"), limit(20));
+
+    unsubscribeHistory = onSnapshot(qHistory, (snapshot) => {
+        headHistorico.value = null;
+        let tail = null;
+        snapshot.docs.forEach(doc => {
+            const node = new LogNode(doc.data(), doc.id);
+            if (!headHistorico.value) { headHistorico.value = node; tail = node; } 
+            else { tail.proximo = node; tail = node; }
+        });
+    }, (error) => {
+        console.error("Erro no Histórico:", error); // Apenas loga o erro
+    });
+};
+*/
+
+// === CICLO DE VIDA ===
+onMounted(() => {
+    onAuthStateChanged(auth, async (u) => {
+        user.value = u;
+        
+        if (u) {
+            // Timeout de segurança: Se travar o carregamento, libera em 4s
+            setTimeout(() => { if(carregando.value) carregando.value = false; }, 4000);
+
+            // === CORREÇÃO AQUI: OUVINTE EM TEMPO REAL DO PERFIL ===
+            const userRef = doc(db, 'artifacts', appId, 'users', u.uid);
+            
+            // Em vez de getDoc (uma vez), usamos onSnapshot (sempre atualizado)
+            onSnapshot(userRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const dados = docSnap.data();
+                    // Forçamos ser número para evitar bugs visuais
+                    pontuacao.value = Number(dados.pontuacao) || 0;
+                } else {
+                    // Se é o primeiro acesso real, cria o documento
+                    setDoc(userRef, { email: u.email, pontuacao: 0 });
+                    pontuacao.value = 0;
+                }
+            }, (error) => {
+                console.error("Erro ao buscar pontuação:", error);
+            });
+            
+            // Inicia os ouvintes das listas (Receitas, Metas, etc)
+            setupListeners(u.uid);
+        } else {
+            // Limpeza ao sair
+            if (unsubscribeHistory) unsubscribeHistory();
+            receitas.value = [];
+            despesas.value = [];
+            metas.value = [];
+            pontuacao.value = 0;
+        }
+    });
+    // SEGURANÇA EXTRA: Se em 5 segundos nada carregar, força a liberação da tela
+    setTimeout(() => {
+        if (carregando.value) {
+            console.warn("Tempo limite de carregamento excedido. Forçando abertura.");
+            carregando.value = false;
+        }
+    }, 5000); // 5000ms = 5 segundos
+});
 </script>
 
 <template>
-    <div class="min-h-screen bg-gray-100 text-gray-800 flex flex-col">
+    <div class="min-h-screen bg-gray-100 text-gray-800 flex flex-col font-sans">
+        
+        <NavBar v-if="user" :user="user" :pontuacao="pontuacao" 
+            @navigate="navigateTo" 
+            @logout="handleLogout"
+            @open-history="showHistory = true" 
+        />
 
-        <NavBar v-if="user" :user="user" :pontuacao="pontuacao" @navigate="navigateTo" @logout="handleLogout"
-            @open-history="showHistory = true" />
-
-        <div v-if="showHistory" @click="showHistory = false"
-            class="fixed inset-0 bg-black/50 z-[60] transition-opacity"></div>
-
+        <div v-if="showHistory" @click="showHistory = false" class="fixed inset-0 bg-black/40 z-[60] backdrop-blur-sm"></div>
+        
         <aside :class="showHistory ? 'translate-x-0' : 'translate-x-full'"
-            class="fixed right-0 top-0 h-full w-80 bg-white shadow-2xl z-[70] transition-transform duration-300 ease-in-out p-6 overflow-y-auto">
-            <div class="flex justify-between items-center mb-6 border-b pb-4">
-                <h3 class="text-xl font-bold text-indigo-900 flex items-center gap-2">
-                    <i class="ph ph-scroll"></i> Histórico
+            class="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl z-[70] transition-transform duration-300 ease-in-out p-6 overflow-y-auto border-l border-gray-100">
+            
+            <div class="flex justify-between items-center mb-8">
+                <h3 class="text-2xl font-bold text-indigo-900 flex items-center gap-3">
+                    <div class="bg-indigo-100 p-2 rounded-lg"><i class="ph-fill ph-scroll text-indigo-600"></i></div>
+                    Histórico
                 </h3>
-                <button @click="showHistory = false"
-                    class="text-gray-400 hover:text-red-500 transition text-2xl">&times;</button>
-            </div>
-
-            <div v-if="historyArray.length === 0" class="text-center py-10 text-gray-400">
-                <i class="ph ph-ghost text-5xl mb-2"></i>
-                <p>Nenhuma conquista ainda nesta sessão.</p>
+                <button @click="showHistory = false" class="bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition text-gray-500">
+                    <i class="ph-bold ph-x"></i>
+                </button>
             </div>
 
             <div class="space-y-4">
-                <div v-for="(log, index) in historyArray" :key="index"
-                    class="bg-indigo-50 p-4 rounded-xl border-l-4 border-indigo-500 relative overflow-hidden group">
-                    <div class="flex justify-between items-start">
-                        <span class="text-xs font-bold text-indigo-400">{{ log.data }}</span>
-                        <span class="text-green-600 font-black text-sm">+{{ log.pontos }}</span>
+                <div v-if="historyArray.length === 0" class="flex flex-col items-center justify-center py-20 text-gray-400 opacity-60">
+                    <i class="ph ph-ghost text-6xl mb-4"></i>
+                    <p>Nenhuma conquista ainda...</p>
+                </div>
+
+                <div v-for="log in historyArray" :key="log.id" 
+                    class="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-start gap-4 group">
+                    
+                    <div class="p-3 rounded-xl transition-transform group-hover:scale-110"
+                         :class="log.pontos < 0 ? 'bg-red-50 text-red-600' : 'bg-yellow-50 text-yellow-600'">
+                        <i :class="log.pontos < 0 ? 'ph-fill ph-warning-circle' : 'ph-fill ph-trophy'" class="text-xl"></i>
                     </div>
-                    <p class="text-indigo-900 font-semibold mt-1">{{ log.mensagem }}</p>
+                    
+                    <div class="flex-1">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="font-bold text-gray-800 text-sm leading-tight">{{ log.mensagem }}</span>
+                            <span class="text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap"
+                                :class="log.pontos < 0 ? 'bg-red-100 text-red-700' : 'bg-green-50 text-green-600'">
+                                {{ log.pontos > 0 ? '+' : '' }}{{ log.pontos }}
+                            </span>
+                        </div>
+                        <p class="text-[11px] text-gray-400 font-medium uppercase tracking-wider">{{ log.data }}</p>
+                    </div>
                 </div>
             </div>
         </aside>
 
-        <main class="container mx-auto px-4 py-6 flex-grow">
-
+        <main class="container mx-auto px-4 py-8 flex-grow">
             <AuthScreen v-if="!user" />
 
             <div v-else>
-                <DashboardHome v-if="currentView === 'home'" :uid="user.uid" :saldo="saldoGlobal"
-                    :resumo="{ receitas, despesas, metas }" @navigate="navigateTo" />
+                <div v-if="carregando" class="flex justify-center items-center py-20">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                </div>
 
-                <ReceitasManager v-if="currentView === 'receitas'" :uid="user.uid" @back="navigateTo('home')"
-                    @points-added="handleAddPoints" />
+                <div v-else>
+                    <DashboardHome v-if="currentView === 'home'" :uid="user.uid" :saldo="saldoGlobal"
+                        :resumo="{ receitas, despesas, metas }" @navigate="navigateTo" />
 
-                <DespesasManager v-if="currentView === 'despesas'" :uid="user.uid" :saldo="saldoGlobal"
-                    @back="navigateTo('home')" @points-added="handleAddPoints" />
+                    <ReceitasManager v-if="currentView === 'receitas'" :uid="user.uid" 
+                        :listaReceitas="receitas" 
+                        @back="navigateTo('home')" @points-added="handleAddPoints" />
 
-                <MetasManager v-if="currentView === 'metas'" :uid="user.uid" :saldo="saldoGlobal"
-                    @back="navigateTo('home')" @points-added="handleAddPoints" />
+                    <DespesasManager v-if="currentView === 'despesas'" :uid="user.uid" 
+                        :saldo="saldoGlobal" :listaDespesas="despesas"
+                        @back="navigateTo('home')" @points-added="handleAddPoints" />
+
+                    <MetasManager v-if="currentView === 'metas'" :uid="user.uid" 
+                        :saldo="saldoGlobal" :listaMetas="metas"
+                        @back="navigateTo('home')" @points-added="handleAddPoints" />
+                </div>
             </div>
         </main>
 
-        <transition name="pop">
-
+        <transition name="slide-fade">
             <div v-if="toastAtivo"
-                class="fixed bottom-8 right-8 bg-yellow-400 text-indigo-950 p-4 rounded-2xl shadow-2xl flex items-center gap-3 border-b-4 border-yellow-600 z-[100] animate-bounce">
-
-                <div class="bg-yellow-500 p-2 rounded-full">
-                    <i class="ph-fill ph-crown text-2xl"></i>
+                class="fixed bottom-10 right-4 md:right-10 px-6 py-4 rounded-2xl shadow-2xl z-[100] flex items-center gap-4 border-l-4 max-w-sm"
+                :class="toastMsg.includes('-') ? 'bg-red-900 border-red-400 text-white' : 'bg-indigo-900 border-yellow-400 text-white'">
+                
+                <div class="p-2 rounded-full shadow-lg"
+                     :class="toastMsg.includes('-') ? 'bg-red-500 text-white shadow-red-500/20' : 'bg-yellow-400 text-indigo-900 shadow-yellow-400/20'">
+                    <i :class="toastMsg.includes('-') ? 'ph-fill ph-thumbs-down' : 'ph-fill ph-crown'" class="text-xl"></i>
                 </div>
-
-                <div class="flex flex-col">
-                    <span class="text-xs font-black uppercase tracking-widest opacity-70">Conquista!</span>
-                    <span class="font-bold text-lg leading-tight">{{ toastMsg }}</span>
+                
+                <div>
+                    <p class="text-[10px] font-bold uppercase tracking-widest mb-0.5"
+                       :class="toastMsg.includes('-') ? 'text-red-200' : 'text-indigo-300'">
+                       {{ toastMsg.includes('-') ? 'Atenção' : 'Nova Conquista' }}
+                    </p>
+                    <p class="font-bold text-sm leading-tight">{{ toastMsg }}</p>
                 </div>
             </div>
         </transition>
@@ -288,17 +417,15 @@ const dispararCelebracao = () => {
 </template>
 
 <style scoped>
-.slide-fade-enter-active {
-    transition: all 0.3s ease-out;
-}
-
+/* Animação suave para o Toast */
+.slide-fade-enter-active,
 .slide-fade-leave-active {
-    transition: all 0.5s cubic-bezier(1, 0.5, 0.8, 1);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .slide-fade-enter-from,
 .slide-fade-leave-to {
-    transform: translateX(20px);
+    transform: translateY(20px);
     opacity: 0;
 }
 </style>
