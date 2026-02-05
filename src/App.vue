@@ -12,7 +12,9 @@ import DashboardHome from './components/DashboardHome.vue';
 import ReceitasManager from './components/ReceitasManager.vue';
 import DespesasManager from './components/DespesasManager.vue';
 import MetasManager from './components/MetasManager.vue';
+import Configuracoes from './components/Configuracoes.vue';
 import confetti from 'canvas-confetti';
+
 
 // === CONFIGURAÇÃO ===
 const appId = 'gefiga_v1'; 
@@ -267,6 +269,12 @@ const setupListeners = (uid) => {
 };
 */
 
+const handleNameUpdate = (newName) => {
+    if (user.value) {
+        user.value = { ...user.value, displayName: newName };
+    }
+};
+
 // === CICLO DE VIDA ===
 onMounted(() => {
     onAuthStateChanged(auth, async (u) => {
@@ -387,9 +395,18 @@ onMounted(() => {
                         :saldo="saldoGlobal" :listaDespesas="despesas"
                         @back="navigateTo('home')" @points-added="handleAddPoints" />
 
-                    <MetasManager v-if="currentView === 'metas'" :uid="user.uid" 
-                        :saldo="saldoGlobal" :listaMetas="metas"
-                        @back="navigateTo('home')" @points-added="handleAddPoints" />
+                    <MetasManager v-if="currentView === 'metas'" 
+                        :uid="user.uid" 
+                        :saldo="saldoGeral" 
+                        :listaMetas="metas" 
+                        @back="currentView = 'home'" 
+                        @points-added="adicionarPontos" />
+
+                    <Configuracoes v-if="currentView === 'config'" 
+                        :user="user" 
+                        :pontuacao="pontuacao"
+                        @update-display-name="handleNameUpdate"
+                        @back="currentView = 'home'" />
                 </div>
             </div>
         </main>

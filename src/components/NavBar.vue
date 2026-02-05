@@ -47,11 +47,17 @@ const progressoNivel = computed(() => (props.pontuacao || 0) % 100);
         </div>
 
         <span @click="emit('open-history')"
-          class="bg-indigo-700 px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-indigo-800 transition active:scale-95">
-          <i class="ph ph-star-fill text-yellow-400"></i> {{ pontuacao }} pts
+            class="bg-indigo-700 px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-indigo-800 transition active:scale-95">
+            <i class="ph ph-star-fill text-yellow-400"></i> {{ pontuacao }} pts
         </span>
 
-        <button @click="emit('logout')" class="hover:text-indigo-200">Sair</button>
+        <button @click="emit('navigate', 'config')" 
+            class="p-2 hover:bg-indigo-500 rounded-full transition flex items-center justify-center group"
+            title="Configurações">
+            <i class="ph ph-gear text-2xl group-hover:rotate-90 transition-transform duration-300"></i>
+        </button>
+
+        <button @click="emit('logout')" class="hover:text-indigo-200 ml-2">Sair</button>
       </div>
 
     </div>
