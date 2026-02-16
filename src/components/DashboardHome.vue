@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 // Agora o componente é "burro" (Dumb Component): 
 // Ele não vai no banco, ele só recebe dados do pai e mostra.
@@ -10,6 +10,54 @@ import { computed } from 'vue';
 // - resumo: Um objeto contendo os arrays { receitas, despesas, metas }
 const props = defineProps(['uid', 'saldo', 'resumo']);
 const emit = defineEmits(['navigate']);
+
+// --- 1. CONTROLE DE DATA (FILTRO) ---
+const dataAtual = new Date();
+const mesSelecionado = ref(dataAtual.getMonth()); // 0 = Janeiro, 1 = Fevereiro...
+const anoSelecionado = ref(dataAtual.getFullYear());
+
+const meses = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
+
+const anos = [2024, 2025, 2026]; // Você pode gerar isso dinamicamente se quiser
+
+// Função auxiliar para verificar se um item pertence ao mês/ano selecionado
+const pertenceAoMes = (item) => {
+    if (!item.data) return false; // Se não tiver data, ignora
+    
+    // Converte timestamp do Firebase para Date JS
+    const dataItem = item.data.toDate ? item.data.toDate() : new Date(item.data);
+    
+    // Se "anoSelecionado" for 'todos', retorna true (filtro de ano inteiro)
+    if (mesSelecionado.value === 'todos') {
+         return dataItem.getFullYear() === anoSelecionado.value;
+    }
+
+    return dataItem.getMonth() === mesSelecionado.value && 
+           dataItem.getFullYear() === anoSelecionado.value;
+};
+
+// --- 2. DADOS FILTRADOS ---
+const receitasFiltradas = computed(() => (props.resumo?.receitas || []).filter(pertenceAoMes));
+const despesasFiltradas = computed(() => (props.resumo?.despesas || []).filter(pertenceAoMes));
+
+// Calcula totais baseados no filtro
+const totalReceitasMes = computed(() => receitasFiltradas.value.reduce((acc, r) => acc + Number(r.valor || 0), 0));
+const totalDespesasMes = computed(() => despesasFiltradas.value.reduce((acc, d) => acc + Number(d.valor || 0), 0));
+const balancoMes = computed(() => totalReceitasMes.value - totalDespesasMes.value);
+
+// --- 3. METAS (ORDENAÇÃO) ---
+const metasOrdenadas = computed(() => {
+    const lista = props.resumo?.metas || [];
+    // Ordena: Quem tem maior % de completude aparece primeiro
+    return [...lista].sort((a, b) => {
+        const perA = (a.valorAtual / a.valorAlvo);
+        const perB = (b.valorAtual / b.valorAlvo);
+        return perB - perA; // Decrescente
+    }).slice(0, 3); // Pega só as top 3
+});
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -23,6 +71,7 @@ const calcPercent = (m) => {
     return Math.min(100, Math.round(p));
 };
 
+/*
 // A lógica da Triagem
 const metaDestaque = computed(() => {
     const metas = props.resumo?.metas;
@@ -37,13 +86,17 @@ const metaDestaque = computed(() => {
     // Usamos [...incompletas] para criar uma cópia e não mexer no dado original da prop
     return [...incompletas].sort((a, b) => calcPercent(b) - calcPercent(a))[0];
 });
+*/
 
+
+/*
 // Verifica se o saldo atual permite finalizar a meta de destaque agora mesmo
 const podeFinalizar = computed(() => {
     if (!metaDestaque.value) return false;
     const faltante = metaDestaque.value.valorAlvo - (metaDestaque.value.valorAtual || 0);
     return props.saldo >= faltante;
 });
+*/
 
 // Acessamos os dados que vieram do App.vue através de props.resumo
 const qtdReceitas = computed(() => props.resumo?.receitas?.length || 0);
@@ -54,89 +107,77 @@ const qtdMetas = computed(() => props.resumo?.metas?.length || 0);
 
 <template>
     <div class="space-y-6">
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h1 class="text-2xl font-bold text-gray-800">Resumo Financeiro</h1>
-            <p class="text-gray-600 mt-1">
-                Saldo Disponível:
-                <span :class="props.saldo >= 0 ? 'text-green-600' : 'text-red-600'" class="font-bold text-2xl ml-2">
-                    {{ formatMoney(props.saldo || 0) }}
-                </span>
-            </p>
-        </div>
-
-        <div v-if="metaDestaque" :class="podeFinalizar ? 'bg-green-600' : 'bg-indigo-600'"
-            class="rounded-2xl p-6 text-white shadow-xl relative overflow-hidden transition-colors duration-500">
-
-            <div
-                class="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500 rounded-full opacity-30 blur-3xl group-hover:scale-110 transition-transform duration-700">
+        
+        <div class="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <br><br>
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800">Visão Geral</h1>
+                <p class="text-gray-500 text-sm">Como está o seu controle financeiro?</p>
             </div>
 
-            <div class="flex flex-col md:flex-row justify-between items-center gap-6 relative z-10">
-                <div class="flex-grow space-y-2">
-                    <div class="flex items-center gap-2">
-                        <i class="ph-fill ph-shooting-star text-yellow-300 text-2xl animate-pulse"></i>
-                        <h2 class="text-xl font-black uppercase tracking-widest text-indigo-100">Quase lá!</h2>
-                    </div>
-                    <p class="text-2xl md:text-3xl font-bold">
-                        Faltam {{ 100 - calcPercent(metaDestaque) }}% para: {{ metaDestaque.descricao }}
-                    </p>
-
-                    <div class="mt-4">
-                        <div
-                            class="w-full bg-indigo-900/50 rounded-full h-4 border border-indigo-400/30 overflow-hidden">
-                            <div class="bg-yellow-400 h-full rounded-full transition-all duration-1000 ease-out shadow-[0_0_15px_rgba(251,191,36,0.5)]"
-                                :style="{ width: calcPercent(metaDestaque) + '%' }"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <button @click="emit('navigate', 'metas')"
-                    class="bg-yellow-400 text-indigo-950 px-8 py-4 rounded-xl font-black hover:bg-yellow-300 hover:scale-105 transition active:scale-95 shadow-lg whitespace-nowrap">
-                    INVESTIR AGORA
-                </button>
+            <div class="flex gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
+                <select v-model="mesSelecionado" class="bg-transparent text-sm font-bold text-gray-700 outline-none p-2 cursor-pointer">
+                    <option :value="'todos'">Ano Todo</option>
+                    <option v-for="(mes, index) in meses" :key="index" :value="index">{{ mes }}</option>
+                </select>
+                <select v-model="anoSelecionado" class="bg-white rounded shadow-sm text-sm font-bold text-indigo-600 outline-none p-2 cursor-pointer border border-gray-200">
+                    <option v-for="ano in anos" :key="ano" :value="ano">{{ ano }}</option>
+                </select>
             </div>
-
-            <p class="text-2xl md:text-3xl font-bold">
-                {{ podeFinalizar ? 'Você já tem o saldo necessário!' : `Faltam ${100 - calcPercent(metaDestaque)}% para:
-                ${metaDestaque.descricao}` }}
-            </p>
-
-            <button @click="emit('navigate', 'metas')"
-                :class="podeFinalizar ? 'bg-white text-green-700' : 'bg-yellow-400 text-indigo-950'"
-                class="px-8 py-4 rounded-xl font-black transition-all hover:scale-105 shadow-lg">
-                {{ podeFinalizar ? 'FINALIZAR AGORA 🏆' : 'INVESTIR AGORA' }}
-            </button>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div @click="emit('navigate', 'receitas')"
-                class="bg-white p-6 rounded-lg shadow hover:shadow-md transition cursor-pointer border-l-4 border-green-500 group">
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="font-bold text-lg group-hover:text-green-700 transition">Receitas</h3>
-                    <i class="ph ph-arrow-up-right text-green-500 text-2xl bg-green-100 p-2 rounded-full"></i>
-                </div>
-                <p class="text-sm text-gray-500">Total cadastrado: <span class="font-bold text-gray-800">{{ qtdReceitas
-                        }}</span></p>
+            <div @click="emit('navigate', 'receitas')" class="bg-green-50 p-6 rounded-xl border border-green-100 cursor-pointer hover:shadow-md transition group relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 bg-green-200 w-20 h-20 rounded-full opacity-20 group-hover:scale-150 transition-transform duration-500"></div>
+                <p class="text-green-800 text-xs font-bold uppercase tracking-wider mb-1">Entradas em {{ mesSelecionado === 'todos' ? anoSelecionado : meses[mesSelecionado] }}</p>
+                <h3 class="text-2xl font-black text-green-700">{{ formatMoney(totalReceitasMes) }}</h3>
+                <p class="text-xs text-green-600 mt-2 font-medium">{{ receitasFiltradas.length }} registros</p>
             </div>
 
-            <div @click="emit('navigate', 'despesas')"
-                class="bg-white p-6 rounded-lg shadow hover:shadow-md transition cursor-pointer border-l-4 border-red-500 group">
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="font-bold text-lg group-hover:text-red-700 transition">Despesas</h3>
-                    <i class="ph ph-arrow-down-right text-red-500 text-2xl bg-red-100 p-2 rounded-full"></i>
-                </div>
-                <p class="text-sm text-gray-500">Total cadastrado: <span class="font-bold text-gray-800">{{ qtdDespesas
-                        }}</span></p>
+            <div @click="emit('navigate', 'despesas')" class="bg-red-50 p-6 rounded-xl border border-red-100 cursor-pointer hover:shadow-md transition group relative overflow-hidden">
+                <div class="absolute -right-4 -top-4 bg-red-200 w-20 h-20 rounded-full opacity-20 group-hover:scale-150 transition-transform duration-500"></div>
+                <p class="text-red-800 text-xs font-bold uppercase tracking-wider mb-1">Saídas em {{ mesSelecionado === 'todos' ? anoSelecionado : meses[mesSelecionado] }}</p>
+                <h3 class="text-2xl font-black text-red-700">{{ formatMoney(totalDespesasMes) }}</h3>
+                <p class="text-xs text-red-600 mt-2 font-medium">{{ despesasFiltradas.length }} registros</p>
             </div>
 
-            <div @click="emit('navigate', 'metas')"
-                class="bg-white p-6 rounded-lg shadow hover:shadow-md transition cursor-pointer border-l-4 border-blue-500 group">
-                <div class="flex justify-between items-center mb-2">
-                    <h3 class="font-bold text-lg group-hover:text-blue-700 transition">Metas</h3>
-                    <i class="ph ph-target text-blue-500 text-2xl bg-blue-100 p-2 rounded-full"></i>
+            <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100 relative overflow-hidden">
+                 <p class="text-indigo-800 text-xs font-bold uppercase tracking-wider mb-1">Balanço do Período</p>
+                 <h3 class="text-2xl font-black" :class="balancoMes >= 0 ? 'text-indigo-700' : 'text-red-600'">
+                    {{ formatMoney(balancoMes) }}
+                 </h3>
+                 <p class="text-xs text-indigo-600 mt-2">Saldo Total Atual: <span class="font-bold">{{ formatMoney(props.saldo) }}</span></p>
+            </div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg text-gray-800 flex items-center gap-2">
+                    <i class="ph-fill ph-target text-blue-500"></i> Metas em Destaque
+                </h3>
+                <button @click="emit('navigate', 'metas')" class="text-xs font-bold text-blue-600 hover:underline">Ver todas</button>
+            </div>
+
+            <div v-if="metasOrdenadas.length === 0" class="text-center py-8 text-gray-400">
+                <p>Nenhuma meta cadastrada ainda.</p>
+            </div>
+
+            <div class="space-y-4">
+                <div v-for="meta in metasOrdenadas" :key="meta.id" class="space-y-1">
+                    <div class="flex justify-between text-sm">
+                        <span class="font-bold text-gray-700">{{ meta.descricao }}</span>
+                        <span class="font-bold" :class="calcPercent(meta) >= 100 ? 'text-green-600' : 'text-blue-600'">{{ calcPercent(meta) }}%</span>
+                    </div>
+                    <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                        <div class="h-full rounded-full transition-all duration-1000"
+                             :class="calcPercent(meta) >= 100 ? 'bg-green-500' : 'bg-blue-500'"
+                             :style="{ width: calcPercent(meta) + '%' }"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-400">
+                        <span>Faltam {{ formatMoney(meta.valorAlvo - meta.valorAtual) }}</span>
+                        <span v-if="meta.prazo">Prazo: {{ new Date(meta.prazo).toLocaleDateString() }}</span>
+                    </div>
                 </div>
-                <p class="text-sm text-gray-500">Total cadastrado: <span class="font-bold text-gray-800">{{ qtdMetas
-                        }}</span></p>
             </div>
         </div>
     </div>

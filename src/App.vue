@@ -13,6 +13,7 @@ import ReceitasManager from './components/ReceitasManager.vue';
 import DespesasManager from './components/DespesasManager.vue';
 import MetasManager from './components/MetasManager.vue';
 import Configuracoes from './components/Configuracoes.vue';
+import JornadaView from './components/JornadaView.vue';
 import confetti from 'canvas-confetti';
 
 
@@ -402,11 +403,16 @@ onMounted(() => {
                         @back="currentView = 'home'" 
                         @points-added="adicionarPontos" />
 
-                    <Configuracoes v-if="currentView === 'config'" 
+                    <JornadaView v-if="currentView === 'jornada'" 
+                        :pontuacao="pontuacao" 
+                        :user="user"
+                        @back="navigateTo('home')" />
+
+                    <Configuracoes v-if="currentView === 'configuracoes'" 
                         :user="user" 
                         :pontuacao="pontuacao"
-                        @update-display-name="handleNameUpdate"
-                        @back="currentView = 'home'" />
+                        @back="navigateTo('home')"
+                        @notify="(msg) => { toastMsg = msg; toastAtivo = true; setTimeout(() => toastAtivo = false, 3000); }" />
                 </div>
             </div>
         </main>

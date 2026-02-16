@@ -15,7 +15,8 @@ const form = reactive({
     descricao: '',
     valorAlvo: 0,
     valorAtual: 0,
-    categoria: 'Outros'
+    categoria: 'Outros',
+    prazo: ''
 });
 
 const getSafeUid = () => {
@@ -34,6 +35,7 @@ const saveMeta = async () => {
             descricao: form.descricao,
             valorAlvo: form.valorAlvo,
             categoria: form.categoria,
+            prazo: form.prazo
             // Não enviamos valorAtual na edição para não resetar o progresso
         };
 
@@ -105,6 +107,7 @@ const resetForm = () => {
     form.valorAlvo = 0;
     form.valorAtual = 0;
     form.categoria = 'Outros';
+    form.prazo = '';
 };
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -131,6 +134,11 @@ const calcPercent = (m) => {
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Valor Alvo (R$)</label>
                 <input v-model.number="form.valorAlvo" type="number" step="0.01" class="w-full p-2 border border-gray-300 rounded bg-white text-gray-900 outline-none focus:ring-2 focus:ring-blue-500" required>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Prazo Limite</label>
+                <input v-model="form.prazo" type="date"
+                    class="w-full p-2 border border-gray-300 rounded bg-white text-gray-900 outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             <div>
                 <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Categoria</label>
