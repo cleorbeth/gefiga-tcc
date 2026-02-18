@@ -112,6 +112,12 @@ const resetForm = () => {
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
+const formatarDataSimples = (dataStr) => {
+  if (!dataStr) return '';
+  const [ano, mes, dia] = dataStr.split('-');
+  return `${dia}/${mes}/${ano}`;
+};
+
 const calcPercent = (m) => {
     if (!m.valorAlvo || m.valorAlvo <= 0) return 0;
     const p = ((m.valorAtual || 0) / m.valorAlvo) * 100;
@@ -174,6 +180,10 @@ const calcPercent = (m) => {
                         <div class="bg-blue-600 h-full rounded-full transition-all duration-1000 ease-out" :style="{ width: calcPercent(m) + '%' }"></div>
                     </div>
                     <p class="text-right text-xs text-blue-600 font-bold mt-1">{{ calcPercent(m) }}%</p>
+                    <<div v-if="m.prazo" class="flex items-center gap-1 mt-2 text-xs text-gray-500 font-medium">
+                        <i class="ph ph-calendar-blank"></i>
+                        <span>Prazo: {{ formatarDataSimples(m.prazo) }}</span>
+                    </div>
                 </div>
 
                 <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">

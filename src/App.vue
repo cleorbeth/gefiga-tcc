@@ -276,6 +276,22 @@ const handleNameUpdate = (newName) => {
     }
 };
 
+const mostrarModalLevelUp = ref(false);
+
+// Monitora a pontuação para disparar o parabéns
+watch(pontuacao, (novoValor, valorAntigo) => {
+    // Se ele acabou de passar de 1000 pontos
+    if (novoValor >= 1000 && valorAntigo < 1000) {
+        mostrarModalLevelUp.value = true;
+        confetti({
+            particleCount: 150,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#10b981', '#3b82f6', '#f59e0b']
+        });
+    }
+});
+
 // === CICLO DE VIDA ===
 onMounted(() => {
     onAuthStateChanged(auth, async (u) => {
@@ -436,6 +452,31 @@ onMounted(() => {
                 </div>
             </div>
         </transition>
+
+        <div v-if="mostrarModalLevelUp" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div class="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border-4 border-green-500 animate-bounce-short">
+                <div class="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <i class="ph-fill ph-medal text-5xl"></i>
+                </div>
+                
+                <h2 class="text-2xl font-black text-gray-800 mb-2">NOVA PATENTE!</h2>
+                <p class="text-green-600 font-bold text-lg mb-4">Você agora é um Aprendiz</p>
+                
+                <p class="text-gray-600 italic mb-6">
+                    "Aqui você está começando a entender como deve ser feito o controle financeiro."
+                </p>
+
+                <div class="space-y-3">
+                    <button @click="currentView = 'jornada'; mostrarModalLevelUp = false" 
+                        class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition">
+                        Ver Minha Jornada Completa
+                    </button>
+                    <button @click="mostrarModalLevelUp = false" class="text-gray-400 text-sm font-medium hover:underline">
+                        Continuar depois
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </template>
 

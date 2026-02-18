@@ -50,14 +50,27 @@ const balancoMes = computed(() => totalReceitasMes.value - totalDespesasMes.valu
 
 // --- 3. METAS (ORDENAÇÃO) ---
 const metasOrdenadas = computed(() => {
+    // Pegamos a lista de metas que vem do App.vue
     const lista = props.resumo?.metas || [];
-    // Ordena: Quem tem maior % de completude aparece primeiro
+
+    // Fazemos uma cópia da lista e ordenamos
     return [...lista].sort((a, b) => {
-        const perA = (a.valorAtual / a.valorAlvo);
-        const perB = (b.valorAtual / b.valorAlvo);
-        return perB - perA; // Decrescente
-    }).slice(0, 3); // Pega só as top 3
+        // Se uma meta não tiver prazo, ela vai para o final
+        if (!a.prazo) return 1;
+        if (!b.prazo) return -1;
+
+        // Ordena da data mais antiga (mais próxima) para a mais distante
+        return a.prazo.localeCompare(b.prazo);
+    }).slice(0, 3); // Mostra apenas as 3 mais urgentes no Dashboard
 });
+
+const formatarDataSimples = (dataStr) => {
+  if (!dataStr) return '';
+  // Divide "2026-10-10" em ["2026", "10", "10"]
+  const [ano, mes, dia] = dataStr.split('-');
+  // Retorna no formato brasileiro/português "10/10/2026"
+  return `${dia}/${mes}/${ano}`;
+};
 
 const formatMoney = (val) => new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -175,7 +188,7 @@ const qtdMetas = computed(() => props.resumo?.metas?.length || 0);
                     </div>
                     <div class="flex justify-between text-xs text-gray-400">
                         <span>Faltam {{ formatMoney(meta.valorAlvo - meta.valorAtual) }}</span>
-                        <span v-if="meta.prazo">Prazo: {{ new Date(meta.prazo).toLocaleDateString() }}</span>
+                        <span v-if="meta.prazo">Prazo: {{ formatarDataSimples(meta.prazo) }}</span>
                     </div>
                 </div>
             </div>
