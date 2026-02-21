@@ -101,6 +101,13 @@ const mostrarDetalhesPatente = ref(false);
         </button>
 
         <button @click="emit('logout')" class="hover:text-indigo-200 ml-2">Sair</button>
+
+        <button @click="emit('navigate', 'investimentos')" 
+            class="flex items-center gap-2 px-4 py-2 rounded-lg transition"
+            :class="currentView === 'investimentos' ? 'bg-indigo-700' : 'hover:bg-indigo-600'">
+            <i class="ph ph-trend-up"></i>
+            <span class="hidden md:inline">Investimentos</span>
+        </button>
       </div>
 
     </div>

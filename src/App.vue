@@ -14,6 +14,7 @@ import DespesasManager from './components/DespesasManager.vue';
 import MetasManager from './components/MetasManager.vue';
 import Configuracoes from './components/Configuracoes.vue';
 import JornadaView from './components/JornadaView.vue';
+import InvestimentosManager from './components/InvestimentosManager.vue';
 import confetti from 'canvas-confetti';
 
 
@@ -429,6 +430,12 @@ onMounted(() => {
                         :pontuacao="pontuacao"
                         @back="navigateTo('home')"
                         @notify="(msg) => { toastMsg = msg; toastAtivo = true; setTimeout(() => toastAtivo = false, 3000); }" />
+
+                    <InvestimentosManager 
+                        v-if="currentView === 'investimentos'" 
+                        :uid="user.uid" 
+                        :saldo="saldoGlobal"
+                        @back="currentView = 'home'" />
                 </div>
             </div>
         </main>
