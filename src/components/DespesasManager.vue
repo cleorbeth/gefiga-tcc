@@ -61,7 +61,7 @@ const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency',
 </script>
 
 <template>
-    <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow border-l-4 border-red-500">
+    <div class="max-w-7xl mx-auto w-full p-4 md:p-6 lg:p-8 bg-white rounded-xl shadow-sm border-l-4 border-red-500 space-y-6">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-red-700">Despesas</h2>
             <button @click="emit('back')" class="bg-gray-200 px-4 py-2 rounded text-gray-700 hover:bg-gray-300 font-bold text-sm">Voltar</button>
@@ -120,35 +120,37 @@ const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency',
             </div>
         </form>
 
-        <div class="overflow-x-auto border rounded-lg">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Descrição</th>
-                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Categoria</th>
-                        <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Valor</th>
-                        <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Ações</th>
-                    </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    <tr v-for="d in props.listaDespesas" :key="d.id" 
-                        class="hover:bg-gray-50 border-l-4 transition"
-                        :class="d.superflua ? 'border-l-red-500 bg-red-50/30' : 'border-l-yellow-400 bg-yellow-50/30'">
-                        
-                        <td class="px-4 py-3 text-sm text-gray-700">
-                            {{ d.descricao }}
-                            <span v-if="d.superflua" class="ml-2 px-2 py-0.5 text-[10px] bg-red-100 text-red-800 rounded-full border border-red-200 font-bold">Supérfluo</span>
-                            <span v-else class="ml-2 px-2 py-0.5 text-[10px] bg-yellow-100 text-yellow-800 rounded-full border border-yellow-200 font-bold">Essencial</span>
-                        </td>
-                        <td class="px-4 py-3 text-sm text-gray-500">{{ d.categoria }}</td>
-                        <td class="px-4 py-3 text-sm font-bold text-red-600">- {{ formatMoney(d.valor) }}</td>
-                        <td class="px-4 py-3 text-right text-sm space-x-2">
-                            <button @click="editItem(d)" class="bg-gray-100 text-indigo-600 text-xs px-2 py-1 rounded border hover:bg-indigo-50 font-bold">Editar</button>
-                            <button @click="deleteItem(d.id)" class="bg-gray-100 text-red-600 text-xs px-2 py-1 rounded border hover:bg-red-50 font-bold">X</button>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="w-full overflow-x-auto pb-2 border rounded-lg">
+            <div class="w-full overflow-x-auto pb-2 border border-gray-100 rounded-lg">
+                <table class="min-w-[600px] w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Descrição</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Categoria</th>
+                            <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase">Valor</th>
+                            <th class="px-4 py-3 text-right text-xs font-bold text-gray-500 uppercase">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr v-for="d in props.listaDespesas" :key="d.id" 
+                            class="hover:bg-gray-50 border-l-4 transition"
+                            :class="d.superflua ? 'border-l-red-500 bg-red-50/30' : 'border-l-yellow-400 bg-yellow-50/30'">
+                            
+                            <td class="px-4 py-3 text-sm text-gray-700">
+                                {{ d.descricao }}
+                                <span v-if="d.superflua" class="ml-2 px-2 py-0.5 text-[10px] bg-red-100 text-red-800 rounded-full border border-red-200 font-bold">Supérfluo</span>
+                                <span v-else class="ml-2 px-2 py-0.5 text-[10px] bg-yellow-100 text-yellow-800 rounded-full border border-yellow-200 font-bold">Essencial</span>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-500">{{ d.categoria }}</td>
+                            <td class="px-4 py-3 text-sm font-bold text-red-600">- {{ formatMoney(d.valor) }}</td>
+                            <td class="px-4 py-3 text-right text-sm space-x-2">
+                                <button @click="editItem(d)" class="bg-gray-100 text-indigo-600 text-xs px-2 py-1 rounded border hover:bg-indigo-50 font-bold">Editar</button>
+                                <button @click="deleteItem(d.id)" class="bg-gray-100 text-red-600 text-xs px-2 py-1 rounded border hover:bg-red-50 font-bold">X</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </template>

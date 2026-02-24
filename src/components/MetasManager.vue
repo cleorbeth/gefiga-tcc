@@ -126,7 +126,7 @@ const calcPercent = (m) => {
 </script>
 
 <template>
-    <div class="max-w-5xl mx-auto bg-white p-6 rounded shadow border-l-4 border-blue-500">
+    <div class="max-w-7xl mx-auto w-full p-4 md:p-6 lg:p-8 bg-white rounded-xl shadow-sm border-l-4 border-blue-500 space-y-6">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-blue-700">Minhas Metas</h2>
             <button @click="emit('back')" class="bg-gray-200 px-4 py-2 rounded text-gray-700 hover:bg-gray-300 font-bold text-sm">Voltar</button>

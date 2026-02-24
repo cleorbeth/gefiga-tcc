@@ -49,7 +49,7 @@ const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency',
 </script>
 
 <template>
-    <div class="max-w-4xl mx-auto bg-white p-6 rounded shadow border-l-4 border-green-500">
+    <div class="max-w-7xl mx-auto w-full p-4 md:p-6 lg:p-8 bg-white rounded-xl shadow-sm border-l-4 border-green-500 space-y-6">
         <div class="flex justify-between items-center mb-6">
             <h2 class="text-2xl font-bold text-green-700">Receitas</h2>
             <button @click="emit('back')" class="bg-gray-200 px-4 py-2 rounded text-gray-700 hover:bg-gray-300 font-bold text-sm">Voltar</button>
@@ -70,17 +70,19 @@ const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency',
             <button v-if="form.id" @click="resetForm" type="button" class="bg-gray-300 text-gray-700 px-4 py-2 rounded font-bold h-10 hover:bg-gray-400 transition">X</button>
         </form>
 
-        <ul class="space-y-3">
-            <li v-for="r in props.listaReceitas" :key="r.id" class="flex justify-between items-center p-4 bg-white border border-gray-200 rounded hover:shadow-sm transition border-l-4 border-l-green-500">
-                <span class="font-medium text-gray-800">{{ r.descricao }}</span>
-                <div class="flex gap-4 items-center">
-                    <span class="font-bold text-green-700">{{ formatMoney(r.valor) }}</span>
-                    <div class="flex gap-2">
-                        <button @click="editItem(r)" class="bg-gray-100 text-blue-600 text-xs px-3 py-1 rounded border hover:bg-blue-50 font-bold">Editar</button>
-                        <button @click="deleteItem(r.id)" class="bg-gray-100 text-red-600 text-xs px-3 py-1 rounded border hover:bg-red-50 font-bold">X</button>
+        <div class="w-full overflow-x-auto pb-2">
+            <ul class="space-y-3">
+                <li v-for="r in props.listaReceitas" :key="r.id" class="flex justify-between items-center p-4 bg-white border border-gray-200 rounded hover:shadow-sm transition border-l-4 border-l-green-500">
+                    <span class="font-medium text-gray-800">{{ r.descricao }}</span>
+                    <div class="flex gap-4 items-center">
+                        <span class="font-bold text-green-700">{{ formatMoney(r.valor) }}</span>
+                        <div class="flex gap-2">
+                            <button @click="editItem(r)" class="bg-gray-100 text-blue-600 text-xs px-3 py-1 rounded border hover:bg-blue-50 font-bold">Editar</button>
+                            <button @click="deleteItem(r.id)" class="bg-gray-100 text-red-600 text-xs px-3 py-1 rounded border hover:bg-red-50 font-bold">X</button>
+                        </div>
                     </div>
-                </div>
-            </li>
-        </ul>
+                </li>
+            </ul>
+        </div>
     </div>
 </template>

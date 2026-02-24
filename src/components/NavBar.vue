@@ -48,7 +48,7 @@ const mostrarDetalhesPatente = ref(false);
 
 <template>
   <nav class="bg-indigo-600 text-white shadow-lg sticky top-0 z-50">
-    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+    <div class="max-w-7xl mx-auto w-full px-4 md:px-6 lg:px-8 py-3 flex justify-between items-center gap-4 overflow-x-auto">
 
       <div class="flex items-center gap-2 cursor-pointer" @click="emit('navigate', 'home')">
         <i class="ph ph-coins text-2xl"></i>
@@ -69,7 +69,8 @@ const mostrarDetalhesPatente = ref(false);
               <span class="text-[10px] font-black uppercase" :class="patenteAtual.cor">{{ patenteAtual.nome }}</span>
               <div class="h-1.5 w-full bg-indigo-800 rounded-full overflow-hidden shadow-inner relative">
                 <div class="h-full bg-gradient-to-r from-yellow-400 to-yellow-200 transition-all duration-500"
-                  :style="{ width: progressoPatente + '%' }"></div>
+                  :style="{ width: progressoPatente + '%' }">
+                </div>
               </div>
             </div>
 

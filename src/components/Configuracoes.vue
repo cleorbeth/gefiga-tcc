@@ -280,7 +280,7 @@ const abrirEnquete = () => window.open('https://forms.google.com/', '_blank');
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
                 <h3 class="font-bold text-gray-700 mb-4 flex items-center gap-2"><i
                         class="ph-fill ph-shield-check text-green-600"></i> Segurança</h3>
-                <button @click="enviarEmailSenha" class="text-sm font-bold text-indigo-600 hover:underline">Redefinir
+                <button @click="enviarEmailSenha" class="text-sm font-bold border border-gray-300 text-indigo-600 hover:underline">Redefinir
                     senha</button>
             </div>
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">

@@ -119,7 +119,7 @@ const qtdMetas = computed(() => props.resumo?.metas?.length || 0);
 </script>
 
 <template>
-    <div class="space-y-6">
+    <div class="max-w-7xl mx-auto w-full p-4 md:p-6 lg:p-8 space-y-6">
         
         <div class="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <br><br>
