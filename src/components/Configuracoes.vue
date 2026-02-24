@@ -1,8 +1,8 @@
 <script setup>
-import { ref, reactive } from 'vue';
+import { ref, reactive, onMounted, onUnmounted } from 'vue';
 import { db, auth } from '../firebase';
 import { updateProfile, sendPasswordResetEmail } from "firebase/auth";
-import { doc, collection, getDocs, writeBatch, updateDoc } from "firebase/firestore";
+import { doc, collection, getDocs, writeBatch, setDoc } from "firebase/firestore";
 
 const props = defineProps(['user']);
 const emit = defineEmits(['back', 'notify']);
@@ -18,6 +18,7 @@ const mostrarEditor = ref(false);
 const imagemParaEditar = ref(null); // URL temporária da imagem crua
 const editorConfig = reactive({
     escala: 1,
+    escalaMinima: 0.1,
     posX: 0,
     posY: 0,
     arrastando: false,
@@ -48,23 +49,43 @@ const aoEscolherArquivo = (event) => {
     if (!arquivo) return;
 
     if (arquivo.size > 5 * 1024 * 1024) {
-        alert("A imagem deve ter no máximo 5MB.");
+        alert("A imagem deve ter no máximo 5MB. Tente uma foto mais leve.");
         return;
     }
 
     const reader = new FileReader();
     reader.onload = (e) => {
-        // Carrega a imagem crua e abre o editor
-        imagemParaEditar.value = e.target.result;
-        
-        // Reseta configurações do editor
-        editorConfig.escala = 1;
-        editorConfig.posX = 0;
-        editorConfig.posY = 0;
-        mostrarEditor.value = true;
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+            const viewportSize = 256;
+            const escalaBase = Math.max(viewportSize / img.width, viewportSize / img.height);
+            
+            editorConfig.escalaMinima = escalaBase;
+            editorConfig.escala = escalaBase;
+            editorConfig.posX = (viewportSize - (img.width * escalaBase)) / 2;
+            editorConfig.posY = (viewportSize - (img.height * escalaBase)) / 2;
+            
+            imagemParaEditar.value = img.src;
+            mostrarEditor.value = true;
+        };
     };
     reader.readAsDataURL(arquivo);
 };
+
+// CONTROLES DE ZOOM E ARRASTO 
+const mudarZoom = (delta) => {
+    editorConfig.escala = Math.max(editorConfig.escalaMinima, Math.min(5, editorConfig.escala + delta));
+};
+
+const lidarComTeclado = (e) => {
+    if (!mostrarEditor.value) return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { e.preventDefault(); mudarZoom(0.05); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { e.preventDefault(); mudarZoom(-0.05); }
+};
+
+onMounted(() => window.addEventListener('keydown', lidarComTeclado));
+onUnmounted(() => window.removeEventListener('keydown', lidarComTeclado));
 
 const iniciarArrasto = (e) => {
     e.preventDefault();
@@ -97,7 +118,7 @@ const confirmarCorte = () => {
     const ctx = canvas.getContext('2d');
     
     // Tamanho final da imagem de perfil (300x300 é um bom equilíbrio)
-    const tamanhoFinal = 300;
+    const tamanhoFinal = 256;
     canvas.width = tamanhoFinal;
     canvas.height = tamanhoFinal;
 
@@ -123,7 +144,7 @@ const confirmarCorte = () => {
         );
 
         // Salva e fecha
-        avatarSelecionado.value = canvas.toDataURL('image/jpeg', 0.9);
+        avatarSelecionado.value = canvas.toDataURL('image/jpeg', 0.6);
         mostrarEditor.value = false;
         imagemParaEditar.value = null; // Limpa memória
     };
@@ -141,16 +162,16 @@ const atualizarPerfil = async () => {
             photoURL: avatarSelecionado.value
         });
 
-        // Atualiza no Firestore (Banco de Dados) para garantir sincronia
         const userRef = doc(db, 'artifacts', appId, 'users', props.user.uid);
-        await updateDoc(userRef, {
-            photoURL: avatarSelecionado.value
-        });
+
+        await setDoc(userRef, { 
+            photoURL: avatarSelecionado.value 
+        }, { merge: true });
         
         emit('notify', 'Perfil atualizado com sucesso!');
     } catch (error) {
         console.error(error);
-        alert("Erro ao salvar (Imagem muito grande? Tente uma menor).");
+        alert("Erro ao salvar perfil. Tente uma foto menor.");
     } finally {
         carregando.value = false;
     }
@@ -212,11 +233,9 @@ const abrirEnquete = () => window.open('https://forms.google.com/', '_blank');
 </script>
 
 <template>
-   <div class="max-w-3xl mx-auto p-6 space-y-8 animate-fade-in pb-20">
-
+    <div class="max-w-3xl mx-auto p-6 space-y-8 animate-fade-in pb-20">
         <div class="flex items-center gap-4">
-            <button @click="emit('back')"
-                class="bg-white p-2 rounded-full shadow hover:bg-gray-50 text-gray-600 transition">
+            <button @click="emit('back')" class="bg-white p-2 rounded-full shadow hover:bg-gray-50 text-gray-600 transition">
                 <i class="ph-bold ph-arrow-left text-xl"></i>
             </button>
             <h1 class="text-2xl font-bold text-gray-800">Ajustes</h1>
@@ -226,23 +245,19 @@ const abrirEnquete = () => window.open('https://forms.google.com/', '_blank');
             <h3 class="font-bold text-gray-700 mb-6 flex items-center gap-2">
                 <i class="ph-fill ph-identification-card text-indigo-600"></i> Identidade Visual
             </h3>
-
+            
             <div class="flex flex-col md:flex-row gap-8">
                 <div class="flex flex-col items-center gap-3">
                     <div class="relative group cursor-pointer" @click="acionarUpload">
-                        <div
-                            class="w-28 h-28 rounded-full border-4 border-indigo-100 overflow-hidden bg-gray-50 shadow-inner relative">
+                        <div class="w-28 h-28 rounded-full border-4 border-indigo-100 overflow-hidden bg-indigo-50 shadow-inner relative flex items-center justify-center">
                             <img v-if="avatarSelecionado" :src="avatarSelecionado" class="w-full h-full object-cover">
-                            <div v-else class="w-full h-full flex items-center justify-center text-gray-300">
-                                <i class="ph-fill ph-user text-5xl"></i>
-                            </div>
-                            <div
-                                class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center text-white">
+                            <i v-else class="ph-fill ph-user text-5xl text-indigo-300"></i>
+                            
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex flex-col items-center justify-center text-white">
                                 <i class="ph-bold ph-camera text-2xl"></i>
                             </div>
                         </div>
-                        <div
-                            class="absolute bottom-0 right-0 bg-indigo-600 text-white p-1.5 rounded-full border-2 border-white shadow-sm group-hover:scale-110 transition">
+                        <div class="absolute bottom-0 right-0 bg-indigo-600 text-white p-1.5 rounded-full border-2 border-white shadow-sm group-hover:scale-110 transition">
                             <i class="ph-bold ph-pencil-simple"></i>
                         </div>
                     </div>
@@ -254,20 +269,19 @@ const abrirEnquete = () => window.open('https://forms.google.com/', '_blank');
                     <div>
                         <label class="text-xs font-bold text-gray-500 uppercase mb-2 block">Avatares da Jornada</label>
                         <div class="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                            <button v-for="seed in seeds" :key="seed" @click="selecionarAvatar(seed)"
-                                class="w-10 h-10 rounded-full border-2 hover:scale-110 transition overflow-hidden bg-gray-50"
+                            <button v-for="seed in seeds" :key="seed" 
+                                @click="selecionarAvatar(seed)"
+                                class="w-10 h-10 rounded-full border-2 hover:scale-110 transition overflow-hidden bg-indigo-50 flex items-center justify-center"
                                 :class="avatarSelecionado === getAvatarUrl(seed) ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-transparent'">
-                                <img :src="getAvatarUrl(seed)" class="w-full h-full">
+                                <img :src="getAvatarUrl(seed)" :alt="seed" class="w-full h-full object-cover">
                             </button>
                         </div>
                     </div>
                     <div>
                         <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Nome de Exibição</label>
                         <div class="flex gap-2">
-                            <input v-model="novoNome" type="text"
-                                class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 text-gray-900 font-medium">
-                            <button @click="atualizarPerfil" :disabled="carregando"
-                                class="bg-indigo-600 text-white px-6 rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition whitespace-nowrap">
+                            <input v-model="novoNome" type="text" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none bg-gray-50 text-gray-900 font-medium">
+                            <button @click="atualizarPerfil" :disabled="carregando" class="bg-indigo-600 text-white px-6 rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition whitespace-nowrap">
                                 {{ carregando ? '...' : 'Salvar' }}
                             </button>
                         </div>
@@ -278,74 +292,57 @@ const abrirEnquete = () => window.open('https://forms.google.com/', '_blank');
 
         <div class="grid md:grid-cols-2 gap-6">
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h3 class="font-bold text-gray-700 mb-4 flex items-center gap-2"><i
-                        class="ph-fill ph-shield-check text-green-600"></i> Segurança</h3>
-                <button @click="enviarEmailSenha" class="text-sm font-bold text-indigo-600 hover:underline">Redefinir
-                    senha</button>
+                <h3 class="font-bold text-gray-700 mb-4 flex items-center gap-2"><i class="ph-fill ph-shield-check text-green-600"></i> Segurança</h3>
+                <button @click="enviarEmailSenha" class="text-sm font-bold text-indigo-600 hover:underline">Redefinir senha</button>
             </div>
             <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                <h3 class="font-bold text-gray-700 mb-4 flex items-center gap-2"><i
-                        class="ph-fill ph-hard-drives text-blue-600"></i> Backup</h3>
-                <button @click="exportarDados"
-                    class="text-sm font-bold text-gray-700 border border-gray-300 px-3 py-1 rounded hover:bg-gray-50">Baixar
-                    Dados</button>
+                <h3 class="font-bold text-gray-700 mb-4 flex items-center gap-2"><i class="ph-fill ph-hard-drives text-blue-600"></i> Backup</h3>
+                <button @click="exportarDados" class="text-sm font-bold text-gray-700 border border-gray-300 px-3 py-1 rounded hover:bg-gray-50">Baixar Dados</button>
             </div>
         </div>
-        <div @click="abrirEnquete"
-            class="cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group">
-            <div
-                class="absolute right-0 top-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl group-hover:scale-150 transition duration-700">
-            </div>
+        <div @click="abrirEnquete" class="cursor-pointer bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden group">
+            <div class="absolute right-0 top-0 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl group-hover:scale-150 transition duration-700"></div>
             <div class="flex items-center gap-4 relative z-10">
                 <div class="bg-white/20 p-3 rounded-full"><i class="ph-fill ph-star text-3xl text-yellow-300"></i></div>
-                <div>
-                    <h3 class="font-bold">Avalie o Sistema</h3>
-                    <p class="text-xs text-indigo-100">Ajude no TCC respondendo a enquete.</p>
-                </div>
+                <div><h3 class="font-bold">Avalie o Sistema</h3><p class="text-xs text-indigo-100">Ajude no TCC respondendo a enquete.</p></div>
             </div>
         </div>
         <div class="bg-red-50 p-6 rounded-2xl border border-red-100">
             <h3 class="font-bold text-red-700 mb-4"><i class="ph-fill ph-warning-octagon"></i> Zona de Reset</h3>
             <div class="flex gap-4">
-                <button @click="zerarTudo(true)" :disabled="processandoReset"
-                    class="flex-1 bg-white border border-red-200 text-red-600 py-2 rounded font-bold hover:bg-red-50">Resetar
-                    Pontos</button>
-                <button @click="zerarTudo(false)" :disabled="processandoReset"
-                    class="flex-1 bg-red-600 text-white py-2 rounded font-bold hover:bg-red-700">Apagar Tudo</button>
+                <button @click="zerarTudo(true)" :disabled="processandoReset" class="flex-1 bg-white border border-red-200 text-red-600 py-2 rounded font-bold hover:bg-red-50">Resetar Pontos</button>
+                <button @click="zerarTudo(false)" :disabled="processandoReset" class="flex-1 bg-red-600 text-white py-2 rounded font-bold hover:bg-red-700">Apagar Tudo</button>
             </div>
         </div>
     </div>
 
-    <div v-if="mostrarEditor"
-        class="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+    <div v-if="mostrarEditor" class="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl animate-scale-in">
             <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">Ajuste sua Foto</h3>
-
+            
             <div class="relative w-64 h-64 mx-auto bg-gray-100 rounded-full overflow-hidden border-4 border-indigo-500 shadow-inner cursor-move touch-none"
-                @mousedown="iniciarArrasto" @mousemove="arrastar" @mouseup="pararArrasto" @mouseleave="pararArrasto"
-                @touchstart="iniciarArrasto" @touchmove="arrastar" @touchend="pararArrasto">
-
+                 @mousedown="iniciarArrasto" @mousemove="arrastar" @mouseup="pararArrasto" @mouseleave="pararArrasto"
+                 @touchstart="iniciarArrasto" @touchmove="arrastar" @touchend="pararArrasto">
                 <img :src="imagemParaEditar" class="absolute origin-top-left select-none pointer-events-none max-w-none"
-                    :style="{
-                        transform: `translate(${editorConfig.posX}px, ${editorConfig.posY}px) scale(${editorConfig.escala})`
-                    }">
+                     :style="{ transform: `translate(${editorConfig.posX}px, ${editorConfig.posY}px) scale(${editorConfig.escala})` }">
             </div>
 
-            <p class="text-xs text-center text-gray-400 mt-2 mb-4">Arraste para mover • Use o controle abaixo para zoom
-            </p>
+            <p class="text-xs text-center text-gray-400 mt-2 mb-4">Arraste para mover • Use os botões ou setas para zoom</p>
 
-            <div class="flex items-center gap-3 mb-6">
-                <i class="ph-bold ph-minus text-gray-400"></i>
-                <input type="range" v-model.number="editorConfig.escala" min="0.5" max="3" step="0.1"
-                    class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
-                <i class="ph-bold ph-plus text-gray-400"></i>
+            <div class="flex items-center gap-3 mb-6 bg-gray-50 p-2 rounded-xl border border-gray-200">
+                <button @click="mudarZoom(-0.1)" class="w-8 h-8 flex items-center justify-center bg-white rounded shadow hover:bg-gray-100 text-gray-600 font-bold">
+                    <i class="ph-bold ph-minus"></i>
+                </button>
+                <input type="range" v-model.number="editorConfig.escala" :min="editorConfig.escalaMinima" max="3" step="0.05" 
+                       class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
+                <button @click="mudarZoom(0.1)" class="w-8 h-8 flex items-center justify-center bg-white rounded shadow hover:bg-gray-100 text-gray-600 font-bold">
+                    <i class="ph-bold ph-plus"></i>
+                </button>
             </div>
 
             <div class="flex gap-3">
-                <button @click="mostrarEditor = false"
-                    class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200">Cancelar</button>
-                <button @click="confirmarCorte"
-                    class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200">Confirmar</button>
+                <button @click="mostrarEditor = false" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200">Cancelar</button>
+                <button @click="confirmarCorte" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200">Confirmar</button>
             </div>
         </div>
     </div>
