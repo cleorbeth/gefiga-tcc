@@ -119,15 +119,13 @@ const qtdMetas = computed(() => props.resumo?.metas?.length || 0);
 </script>
 
 <template>
-    <div class="space-y-6">
+    <div class="max-w-7xl mx-auto w-full p-4 md:p-6 lg:p-8 space-y-6">
         
-        <div class="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <br><br>
+        <div class="flex flex-col md:flex-row justify-between items-end md:items-center gap-4 bg-white p-6 rounded-lg shadow-sm border border-gray-100 mt-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-800">Visão Geral</h1>
                 <p class="text-gray-500 text-sm">Como está o seu controle financeiro?</p>
             </div>
-
             <div class="flex gap-2 bg-gray-50 p-1 rounded-lg border border-gray-200">
                 <select v-model="mesSelecionado" class="bg-transparent text-sm font-bold text-gray-700 outline-none p-2 cursor-pointer">
                     <option :value="'todos'">Ano Todo</option>
@@ -146,14 +144,12 @@ const qtdMetas = computed(() => props.resumo?.metas?.length || 0);
                 <h3 class="text-2xl font-black text-green-700">{{ formatMoney(totalReceitasMes) }}</h3>
                 <p class="text-xs text-green-600 mt-2 font-medium">{{ receitasFiltradas.length }} registros</p>
             </div>
-
             <div @click="emit('navigate', 'despesas')" class="bg-red-50 p-6 rounded-xl border border-red-100 cursor-pointer hover:shadow-md transition group relative overflow-hidden">
                 <div class="absolute -right-4 -top-4 bg-red-200 w-20 h-20 rounded-full opacity-20 group-hover:scale-150 transition-transform duration-500"></div>
                 <p class="text-red-800 text-xs font-bold uppercase tracking-wider mb-1">Saídas em {{ mesSelecionado === 'todos' ? anoSelecionado : meses[mesSelecionado] }}</p>
                 <h3 class="text-2xl font-black text-red-700">{{ formatMoney(totalDespesasMes) }}</h3>
                 <p class="text-xs text-red-600 mt-2 font-medium">{{ despesasFiltradas.length }} registros</p>
             </div>
-
             <div class="bg-indigo-50 p-6 rounded-xl border border-indigo-100 relative overflow-hidden">
                  <p class="text-indigo-800 text-xs font-bold uppercase tracking-wider mb-1">Balanço do Período</p>
                  <h3 class="text-2xl font-black" :class="balancoMes >= 0 ? 'text-indigo-700' : 'text-red-600'">
@@ -170,11 +166,9 @@ const qtdMetas = computed(() => props.resumo?.metas?.length || 0);
                 </h3>
                 <button @click="emit('navigate', 'metas')" class="text-xs font-bold text-blue-600 hover:underline">Ver todas</button>
             </div>
-
             <div v-if="metasOrdenadas.length === 0" class="text-center py-8 text-gray-400">
                 <p>Nenhuma meta cadastrada ainda.</p>
             </div>
-
             <div class="space-y-4">
                 <div v-for="meta in metasOrdenadas" :key="meta.id" class="space-y-1">
                     <div class="flex justify-between text-sm">

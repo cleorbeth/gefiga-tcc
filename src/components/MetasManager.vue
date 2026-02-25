@@ -135,7 +135,6 @@ const calcPercent = (m) => {
 
 <template>
     <div class="max-w-5xl mx-auto p-6 space-y-8 animate-fade-in pb-20">
-        
         <div class="flex items-center gap-4">
             <button @click="emit('back')" class="bg-white p-2 rounded-full shadow hover:bg-gray-50 text-gray-600 transition">
                 <i class="ph-bold ph-arrow-left text-xl"></i>
@@ -143,35 +142,30 @@ const calcPercent = (m) => {
             <h1 class="text-2xl font-bold text-gray-800">Minhas Metas</h1>
         </div>
 
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-blue-500">
             <form @submit.prevent="saveMeta" class="grid gap-4 md:grid-cols-2">
                 <div class="md:col-span-2">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Descrição do Objetivo</label>
                     <input v-model="form.descricao" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 text-gray-900 font-medium" required placeholder="Ex: Viagem para a praia">
                 </div>
-                
                 <div>
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Valor Alvo (R$)</label>
                     <input v-model.number="form.valorAlvo" type="number" step="0.01" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 text-gray-900 font-medium" required>
                 </div>
-                
                 <div>
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Prazo Limite</label>
                     <input v-model="form.prazo" type="date" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 text-gray-900 font-medium text-sm">
                 </div>
-                
                 <div class="md:col-span-2">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Categoria</label>
                     <select v-model="form.categoria" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-gray-50 text-gray-900 font-medium cursor-pointer">
                         <option v-for="cat in categorias" :key="cat" :value="cat">{{ cat }}</option>
                     </select>
                 </div>
-
                 <div v-if="form.categoria === 'Outros'" class="md:col-span-2 animate-fade-in">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Especifique a Categoria</label>
                     <input v-model="form.categoriaCustom" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-yellow-50 border-yellow-200 text-gray-900 font-medium" placeholder="Ex: Casamento (Opcional)">
                 </div>
-
                 <div class="md:col-span-2 flex gap-3 pt-4 border-t border-gray-100">
                     <button v-if="form.id" @click="resetForm" type="button" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold hover:bg-gray-200 transition">Cancelar</button>
                     <button type="submit" class="flex-[2] bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-700 shadow-lg shadow-blue-200 transition">
@@ -184,7 +178,6 @@ const calcPercent = (m) => {
         <div class="grid gap-6 md:grid-cols-2">
             <div v-for="m in props.listaMetas" :key="m.id" class="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm hover:shadow-md transition relative overflow-hidden group">
                 <div v-if="calcPercent(m) >= 100" class="absolute -right-10 -top-10 bg-green-400 w-32 h-32 rounded-full blur-3xl opacity-20"></div>
-
                 <div class="flex justify-between items-start mb-4 relative z-10">
                     <div>
                         <h4 class="font-black text-xl text-gray-800 leading-tight mb-1">{{ m.descricao }}</h4>
@@ -214,11 +207,9 @@ const calcPercent = (m) => {
 
                 <div v-if="calcPercent(m) < 100" class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-50 relative z-10">
                     <label class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block mb-3 text-center">Investir do Saldo</label>
-                    
                     <div class="flex flex-col gap-3">
                         <input type="range" min="0" :max="props.saldo > 0 ? props.saldo : 1000" step="1" 
                             v-model.number="tempInvestment[m.id]" class="w-full h-1.5 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600">
-                        
                         <div class="flex items-center gap-2">
                             <div class="relative flex-1">
                                 <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-sm">R$</span>
@@ -233,7 +224,6 @@ const calcPercent = (m) => {
                         </div>
                     </div>
                 </div>
-                
                 <div v-else class="bg-green-50 text-green-700 p-3 rounded-xl border border-green-100 font-bold text-center flex items-center justify-center gap-2 relative z-10">
                     <i class="ph-fill ph-check-circle text-xl"></i> Meta Concluída!
                 </div>

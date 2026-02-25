@@ -39,17 +39,18 @@ const formatMoney = (v) => v.toLocaleString('pt-BR', { style: 'currency', curren
 </script>
 
 <template>
-    <div class="max-w-5xl mx-auto space-y-6 pb-10">
-        <div class="flex justify-between items-center bg-white p-6 rounded-xl shadow-sm border-l-4 border-indigo-500">
+    <div class="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 space-y-6 pb-10 w-full">
+        
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-4 md:p-6 rounded-xl shadow-sm border-l-4 border-indigo-500 gap-4">
             <div>
                 <h2 class="text-2xl font-bold text-gray-800">Central de Investimentos</h2>
                 <p class="text-sm text-gray-500">Aprenda a fazer o seu dinheiro trabalhar por você.</p>
             </div>
-            <button @click="emit('back')" class="bg-gray-100 px-4 py-2 rounded-lg font-bold hover:bg-gray-200">Voltar</button>
+            <button @click="emit('back')" class="w-full md:w-auto bg-gray-100 px-4 py-2 rounded-lg font-bold hover:bg-gray-200">Voltar</button>
         </div>
 
         <div class="grid md:grid-cols-3 gap-6">
-            <div class="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div class="md:col-span-2 bg-white p-4 md:p-6 rounded-xl shadow-sm border border-gray-100">
                 <h3 class="font-bold text-lg mb-4 flex items-center gap-2">
                     <i class="ph ph-calculator text-indigo-500"></i> Calculadora de Futuro
                 </h3>
@@ -72,10 +73,10 @@ const formatMoney = (v) => v.toLocaleString('pt-BR', { style: 'currency', curren
                         </div>
                     </div>
 
-                    <div class="mt-8 p-6 bg-indigo-900 rounded-2xl text-white">
+                    <div class="mt-8 p-4 md:p-6 bg-indigo-900 rounded-2xl text-white">
                         <p class="text-indigo-200 text-sm uppercase font-bold">Resultado estimado após {{ tempoAnos }} anos:</p>
-                        <h4 class="text-4xl font-black my-2">{{ formatMoney(resultadoFinal) }}</h4>
-                        <div class="flex justify-between text-xs border-t border-indigo-800 pt-4 mt-4">
+                        <h4 class="text-3xl md:text-4xl font-black my-2 break-words">{{ formatMoney(resultadoFinal) }}</h4>
+                        <div class="flex flex-col sm:flex-row justify-between text-xs border-t border-indigo-800 pt-4 mt-4 gap-2">
                             <span>Investido: {{ formatMoney(totalInvestido) }}</span>
                             <span class="text-green-400 font-bold">Juros: +{{ formatMoney(totalJuros) }}</span>
                         </div>
@@ -96,7 +97,7 @@ const formatMoney = (v) => v.toLocaleString('pt-BR', { style: 'currency', curren
             </div>
         </div>
 
-        <div class="bg-yellow-50 p-6 rounded-xl border border-yellow-200">
+        <div class="bg-yellow-50 p-4 md:p-6 rounded-xl border border-yellow-200">
             <h4 class="font-bold text-yellow-800 flex items-center gap-2 mb-2">
                 <i class="ph ph-lightbulb"></i> Por que investir?
             </h4>

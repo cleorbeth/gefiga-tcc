@@ -50,7 +50,7 @@ const menuAberto = ref(false);
 
 <template>
   <nav class="bg-indigo-600 text-white shadow-lg sticky top-0 z-50">
-    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+    <div class="max-w-7xl mx-auto w-full px-4 md:px-6 lg:px-8 py-3 flex justify-between items-center gap-4">
 
       <div class="flex items-center gap-2 cursor-pointer" @click="emit('navigate', 'home')">
         <i class="ph ph-coins text-2xl"></i>
@@ -58,93 +58,61 @@ const menuAberto = ref(false);
       </div>
 
       <div class="flex items-center gap-4">
-        <div class="flex items-center gap-3 border-r border-indigo-500 pr-4 mr-2">
-
-
+        
+        <div class="hidden sm:flex items-center gap-3 border-r border-indigo-500 pr-4 mr-2">
+            <div @click="emit('navigate', 'jornada')" class="flex flex-col min-w-[140px] cursor-pointer hover:scale-105 transition-transform relative"
+                @mouseenter="mostrarDetalhesPatente = true" @mouseleave="mostrarDetalhesPatente = false">
+                <span class="text-[10px] font-black uppercase text-center mb-1" :class="patenteAtual.cor">{{ patenteAtual.nome }}</span>
+                <div class="h-1.5 w-full bg-indigo-800 rounded-full overflow-hidden shadow-inner relative">
+                    <div class="h-full bg-gradient-to-r from-yellow-400 to-yellow-200 transition-all duration-500" :style="{ width: progressoPatente + '%' }"></div>
+                </div>
+                
+                <div v-if="mostrarDetalhesPatente" class="absolute top-8 left-0 bg-white text-gray-800 p-3 rounded-lg shadow-xl w-64 z-50 border border-indigo-100 text-xs text-left cursor-default">
+                    <p class="font-bold text-indigo-900 mb-1">{{ patenteAtual.nome }}</p>
+                    <p class="mb-2 italic">"{{ patenteAtual.msg }}"</p>
+                    <div v-if="proximaPatente">
+                        <p class="text-gray-500">Próximo nível: <span class="font-bold">{{ proximaPatente.nome }}</span></p>
+                        <p class="text-indigo-600 font-bold">Faltam {{ proximaPatente.min - (pontuacao || 0) }} pts</p>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <button @click="emit('navigate', 'investimentos')" 
-            class="flex items-center gap-2 px-4 py-2 rounded-lg transition"
-            :class="currentView === 'investimentos' ? 'bg-indigo-700' : 'hover:bg-indigo-600'">
+        <button @click="emit('navigate', 'investimentos')" class="flex items-center gap-2 px-3 py-2 rounded-lg transition" :class="currentView === 'investimentos' ? 'bg-indigo-700' : 'hover:bg-indigo-600'">
             <i class="ph ph-trend-up"></i>
-            <span class="hidden md:inline">Investimentos</span>
+            <span class="hidden md:inline font-bold">Investimentos</span>
         </button>
-      </div>
 
-      <br><br>
-
-      <div class="flex items-center gap-4 relative">
-
-        <span @click="emit('open-history')"
-          class="bg-indigo-700 px-3 py-1 rounded-full text-sm cursor-pointer hover:bg-indigo-800 transition active:scale-95">
+        <span @click="emit('open-history')" class="bg-indigo-700 px-3 py-1.5 rounded-full text-sm font-bold cursor-pointer hover:bg-indigo-800 transition active:scale-95 flex items-center gap-1">
           <i class="ph ph-star-fill text-yellow-400"></i> {{ pontuacao }} pts
         </span>
 
         <div class="relative">
-          <div @click="menuAberto = !menuAberto"
-            class="flex items-center gap-3 border-l border-indigo-500 pl-4 cursor-pointer hover:opacity-80 transition">
-            <img v-if="user?.photoURL" :src="user.photoURL"
-              class="w-10 h-10 rounded-full border-2 border-indigo-400 object-cover bg-white">
+          <div @click="menuAberto = !menuAberto" class="flex items-center gap-2 border-l border-indigo-500 pl-4 cursor-pointer hover:opacity-80 transition">
+            <img v-if="user?.photoURL" :src="user.photoURL" class="w-10 h-10 rounded-full border-2 border-indigo-400 object-cover bg-white">
             <i v-else class="ph ph-user-circle text-3xl opacity-70"></i>
-
-            <div class="flex flex-col min-w-[100px]">
-              <span class="text-sm font-bold leading-tight flex items-center gap-1">
-                {{ user?.displayName || 'Usuário' }}
-                <i class="ph-bold ph-caret-down text-[10px] opacity-70"></i>
-              </span>
-             <div class="flex flex-col min-w-[140px] relative group">
-
-                <div @click="emit('navigate', 'jornada')"
-                  class="flex items-center gap-2 mt-1 cursor-pointer hover:scale-105 transition-transform"
-                  @mouseenter="mostrarDetalhesPatente = true" @mouseleave="mostrarDetalhesPatente = false">
-                  <span class="text-[10px] font-black uppercase" :class="patenteAtual.cor">{{ patenteAtual.nome
-                    }}</span>
-                  <div class="h-1.5 w-full bg-indigo-800 rounded-full overflow-hidden shadow-inner relative">
-                    <div class="h-full bg-gradient-to-r from-yellow-400 to-yellow-200 transition-all duration-500"
-                      :style="{ width: progressoPatente + '%' }"></div>
-                  </div>
-                </div>
-
-                <div v-if="mostrarDetalhesPatente"
-                  class="absolute top-10 left-0 bg-white text-gray-800 p-3 rounded-lg shadow-xl w-64 z-50 border border-indigo-100 text-xs">
-                  <p class="font-bold text-indigo-900 mb-1">{{ patenteAtual.nome }}</p>
-                  <p class="mb-2 italic">"{{ patenteAtual.msg }}"</p>
-
-                  <div v-if="proximaPatente">
-                    <p class="text-gray-500">Próximo nível: <span class="font-bold">{{ proximaPatente.nome }}</span></p>
-                    <p class="text-indigo-600 font-bold">Faltam {{ proximaPatente.min - (pontuacao || 0) }} pts</p>
-                  </div>
-                  <div v-else>
-                    <p class="text-green-600 font-bold">Você atingiu o nível máximo!</p>
-                  </div>
-                </div>
-              </div>
-
-              <span class="text-[10px] font-black uppercase text-indigo-200">Ver Perfil</span>
+            <div class="hidden md:flex flex-col">
+              <span class="text-sm font-bold leading-tight flex items-center gap-1">{{ user?.displayName || 'Usuário' }} <i class="ph-bold ph-caret-down text-[10px] opacity-70"></i></span>
             </div>
           </div>
 
-          <div v-if="menuAberto"
-            class="absolute right-0 top-full mt-4 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[100] animate-fade-in">
-            <div class="p-3 bg-gray-50 border-b border-gray-100 text-center">
-              <p class="text-xs text-gray-500 font-bold uppercase">Opções da Conta</p>
-            </div>
-
-            <button @click="emit('navigate', 'configuracoes'); menuAberto = false"
-              class="w-full text-left px-4 py-3 text-sm text-gray-700 font-bold hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center gap-2">
+          <div v-if="menuAberto" class="absolute right-0 top-full mt-4 w-48 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[100] animate-fade-in">
+            <div class="p-3 bg-gray-50 border-b border-gray-100 text-center"><p class="text-xs text-gray-500 font-bold uppercase">Opções</p></div>
+            <button @click="emit('navigate', 'configuracoes'); menuAberto = false" class="w-full text-left px-4 py-3 text-sm text-gray-700 font-bold hover:bg-indigo-50 hover:text-indigo-600 transition flex items-center gap-2">
               <i class="ph-bold ph-gear"></i> Ajustes de Perfil
             </button>
-
-            <button @click="emit('logout'); menuAberto = false"
-              class="w-full text-left px-4 py-3 text-sm text-red-600 font-bold hover:bg-red-50 transition flex items-center gap-2">
+            <button @click="emit('logout'); menuAberto = false" class="w-full text-left px-4 py-3 text-sm text-red-600 font-bold hover:bg-red-50 transition flex items-center gap-2">
               <i class="ph-bold ph-sign-out"></i> Sair do Sistema
             </button>
           </div>
-
           <div v-if="menuAberto" @click="menuAberto = false" class="fixed inset-0 z-[90]"></div>
         </div>
       </div>
-
     </div>
   </nav>
 </template>
+
+<style scoped>
+.animate-fade-in { animation: fadeIn 0.2s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+</style>

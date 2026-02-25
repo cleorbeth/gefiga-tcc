@@ -97,7 +97,6 @@ const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency',
 
 <template>
     <div class="max-w-4xl mx-auto p-6 space-y-8 animate-fade-in pb-20">
-        
         <div class="flex items-center gap-4">
             <button @click="emit('back')" class="bg-white p-2 rounded-full shadow hover:bg-gray-50 text-gray-600 transition">
                 <i class="ph-bold ph-arrow-left text-xl"></i>
@@ -105,25 +104,22 @@ const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency',
             <h1 class="text-2xl font-bold text-gray-800">Saídas e Despesas</h1>
         </div>
 
-        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 border-l-4 border-l-red-500">
             <form @submit.prevent="saveDespesa" class="grid gap-4 md:grid-cols-2">
                 <div class="md:col-span-2">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Descrição</label>
                     <input v-model="form.descricao" type="text" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 outline-none bg-gray-50 text-gray-900 font-medium" required placeholder="O que você comprou/pagou?">
                 </div>
-
                 <div>
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Valor (R$)</label>
                     <input v-model.number="form.valor" type="number" step="0.01" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 outline-none bg-gray-50 text-gray-900 font-medium" required>
                 </div>
-
                 <div>
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Categoria</label>
                     <select v-model="form.categoria" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 outline-none bg-gray-50 text-gray-900 font-medium cursor-pointer">
                         <option v-for="cat in categorias" :key="cat" :value="cat">{{ cat }}</option>
                     </select>
                 </div>
-
                 <div v-if="form.categoria === 'Outros'" class="md:col-span-2 animate-fade-in">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-1 block">Especifique a Categoria</label>
                     <input v-model="form.categoriaCustom" class="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 outline-none bg-yellow-50 border-yellow-200 text-gray-900 font-medium" placeholder="Ex: Impostos (Opcional)">
@@ -132,22 +128,17 @@ const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency',
                 <div class="md:col-span-2 mt-2">
                     <label class="text-xs font-bold text-gray-500 uppercase mb-2 block text-center">Classificação do Gasto</label>
                     <div class="grid grid-cols-2 gap-4">
-                        <label class="cursor-pointer border-2 rounded-xl p-4 flex flex-col md:flex-row items-center justify-center gap-3 transition-all"
+                        <label class="cursor-pointer border-2 rounded-xl p-4 flex flex-col items-center justify-center gap-1 transition-all"
                             :class="!form.superflua ? 'border-yellow-500 bg-yellow-50 shadow-md scale-[1.02]' : 'border-gray-200 hover:border-yellow-200 grayscale opacity-70'">
                             <input type="radio" :value="false" v-model="form.superflua" class="hidden">
-                            <div class="text-center">
-                                <span class="block font-black text-gray-800">Essencial</span>
-                                <span class="text-xs text-green-600 font-bold">+5 pontos</span>
-                            </div>
+                            <span class="block font-black text-gray-800">Essencial</span>
+                            <span class="text-xs text-green-600 font-bold">+5 pontos</span>
                         </label>
-
-                        <label class="cursor-pointer border-2 rounded-xl p-4 flex flex-col md:flex-row items-center justify-center gap-3 transition-all"
+                        <label class="cursor-pointer border-2 rounded-xl p-4 flex flex-col items-center justify-center gap-1 transition-all"
                             :class="form.superflua ? 'border-red-500 bg-red-50 shadow-md scale-[1.02]' : 'border-gray-200 hover:border-red-200 grayscale opacity-70'">
                             <input type="radio" :value="true" v-model="form.superflua" class="hidden">
-                            <div class="text-center">
-                                <span class="block font-black text-gray-800">Supérflua</span>
-                                <span class="text-xs text-red-600 font-bold">-10 pontos</span>
-                            </div>
+                            <span class="block font-black text-gray-800">Supérflua</span>
+                            <span class="text-xs text-red-600 font-bold">-10 pontos</span>
                         </label>
                     </div>
                 </div>
@@ -162,8 +153,8 @@ const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency',
         </div>
 
         <div class="space-y-4">
-            <div v-for="d in props.listaDespesas" :key="d.id" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition flex flex-col md:flex-row md:items-center justify-between gap-4 border-l-4" :class="d.superflua ? 'border-l-red-500' : 'border-l-yellow-400'">
-                <div class="flex-1">
+            <div v-for="d in props.listaDespesas" :key="d.id" class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition flex items-center justify-between border-l-4" :class="d.superflua ? 'border-l-red-500' : 'border-l-yellow-400'">
+                <div>
                     <div class="flex items-center gap-2 mb-1">
                         <span class="font-bold text-gray-800 text-lg leading-tight">{{ d.descricao }}</span>
                         <span class="px-2 py-0.5 text-[10px] rounded-full font-bold uppercase tracking-widest" :class="d.superflua ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-800'">
@@ -172,7 +163,7 @@ const formatMoney = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency',
                     </div>
                     <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">{{ d.categoria }}</span>
                 </div>
-                <div class="flex items-center justify-between md:justify-end gap-6 w-full md:w-auto">
+                <div class="flex items-center gap-6">
                     <span class="font-black text-red-600 text-xl">- {{ formatMoney(d.valor) }}</span>
                     <div class="flex gap-2">
                         <button @click="editItem(d)" class="w-8 h-8 flex items-center justify-center bg-gray-100 text-indigo-600 rounded-lg hover:bg-indigo-50 hover:text-indigo-700 transition"><i class="ph-bold ph-pencil-simple"></i></button>
