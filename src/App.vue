@@ -15,6 +15,7 @@ import MetasManager from './components/MetasManager.vue';
 import Configuracoes from './components/Configuracoes.vue';
 import JornadaView from './components/JornadaView.vue';
 import InvestimentosManager from './components/InvestimentosManager.vue';
+import RecorrentesManager from './components/RecorrentesManager.vue';
 import confetti from 'canvas-confetti';
 
 
@@ -23,7 +24,18 @@ const appId = 'gefiga_v1';
 
 // === ESTADO GLOBAL ===
 const user = ref(null);
-const pontuacao = ref(0);
+
+const pontuacao = computed(() => {
+    // reduce() percorre a lista encadeada somando a propriedade "pontos"
+    const total = historyArray.value.reduce((acumulador, log) => {
+        return acumulador + (Number(log.pontos) || 0);
+    }, 0);
+    
+    return Math.max(0, total); // Garante que nunca fique menor que zero
+});
+
+const streakAtual = ref(0);
+
 const currentView = ref('home');
 const receitas = ref([]);
 const despesas = ref([]);
@@ -36,7 +48,7 @@ const toastAtivo = ref(false);
 const toastMsg = ref('');
 
 // === LISTA ENCADEADA (Lógica Acadêmica) ===
-// Mantemos a estrutura de nó para cumprir requisito de TCC
+// Mantemos a estrutura de nó 
 class LogNode {
     constructor(data, id) {
         this.id = id;
@@ -107,13 +119,6 @@ const handleAddPoints = async (pts, descricao) => {
             data: serverTimestamp()
         });
 
-        // 2. Atualiza Pontuação Global
-        const userRef = doc(db, "artifacts", appId, "users", user.value.uid);
-        await updateDoc(userRef, { pontuacao: increment(pontosNumericos) });
-        
-        // Atualiza localmente para feedback instantâneo (opcional, pois o listener já fará isso)
-        pontuacao.value += pontosNumericos;
-
     } catch (e) {
         console.error("Erro ao salvar pontos:", e);
     }
@@ -182,6 +187,55 @@ const setupListeners = (uid) => {
         checkDone(); 
     });
 
+    // === CÉREBRO DE LANÇAMENTOS RECORRENTES (Frontend Cron Job) ===
+    const checkRecorrentes = async () => {
+        const recRef = collection(db, 'artifacts', appId, 'users', uid, 'recorrentes');
+        // Pega as contas apenas 1 vez ao abrir o site para checar
+        import('firebase/firestore').then(async ({ getDocs, updateDoc, addDoc }) => {
+            const snap = await getDocs(recRef);
+            
+            const hoje = new Date();
+            const mesAtual = hoje.getMonth();
+            const anoAtual = hoje.getFullYear();
+            const diaAtual = hoje.getDate();
+
+            snap.forEach(async (docSnap) => {
+                const conta = docSnap.data();
+                
+                // LÓGICA: Já passou o dia do vencimento? E ainda NÃO cobrou neste mês/ano?
+                if (diaAtual >= conta.diaLancamento) {
+                    if (conta.ultimoMes !== mesAtual || conta.ultimoAno !== anoAtual) {
+                        
+                        // 1. Cria o registro oficial na tabela de receita ou despesa
+                        const pastaDestino = conta.tipo === 'receita' ? 'receitas' : 'despesas';
+                        const targetCol = collection(db, 'artifacts', appId, 'users', uid, pastaDestino);
+                        
+                        await addDoc(targetCol, {
+                            descricao: `[Automático] ${conta.descricao}`,
+                            valor: conta.valor,
+                            categoria: 'Recorrente',
+                            data: serverTimestamp(),
+                            superflua: false // Padrão falso para automáticos
+                        });
+
+                        // 2. Atualiza a tabela de recorrentes para avisar que já cobrou esse mês
+                        await updateDoc(doc(db, 'artifacts', appId, 'users', uid, 'recorrentes', docSnap.id), {
+                            ultimoMes: mesAtual,
+                            ultimoAno: anoAtual
+                        });
+
+                        // 3. Avisa o usuário na tela (Cumprindo seu requisito de lembrar de alterar)
+                        toastMsg.value = `O sistema lançou: ${conta.descricao} (R$ ${conta.valor}). Lembre-se de ajustar o valor exato no painel de ${pastaDestino}!`;
+                        toastAtivo.value = true;
+                        setTimeout(() => toastAtivo.value = false, 7000); // 7 segundos para dar tempo de ler
+                    }
+                }
+            });
+        });
+    };
+
+    checkRecorrentes();
+
     // 4. Histórico (Conquistas)
     if (unsubscribeHistory) unsubscribeHistory();
     
@@ -202,74 +256,6 @@ const setupListeners = (uid) => {
         });
     }, (e) => console.error("Erro Histórico:", e));
 };
-
-/*
-const setupListeners = (uid) => {
-    carregando.value = true;
-    const baseRef = collection(db, 'artifacts', appId, 'users', uid);
-
-    // Variáveis de controle para saber quando tudo terminou
-    let carregouReceitas = false;
-    let carregouDespesas = false;
-    let carregouMetas = false;
-
-    // Função auxiliar para verificar se podemos liberar a tela
-    const verificarFimCarregamento = () => {
-        if (carregouReceitas && carregouDespesas && carregouMetas) {
-            carregando.value = false;
-        }
-    };
-
-    // 1. Receitas
-    onSnapshot(collection(baseRef, 'receitas'), (snap) => {
-        receitas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        carregouReceitas = true;
-        verificarFimCarregamento();
-    }, (error) => {
-        console.error("Erro em Receitas:", error);
-        carregouReceitas = true; // Marca como "concluído" (mesmo com erro) para não travar a tela
-        verificarFimCarregamento();
-    });
-
-    // 2. Despesas
-    onSnapshot(collection(baseRef, 'despesas'), (snap) => {
-        despesas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        carregouDespesas = true;
-        verificarFimCarregamento();
-    }, (error) => {
-        console.error("Erro em Despesas:", error);
-        carregouDespesas = true;
-        verificarFimCarregamento();
-    });
-
-    // 3. Metas
-    onSnapshot(collection(baseRef, 'metas'), (snap) => {
-        metas.value = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        carregouMetas = true;
-        verificarFimCarregamento();
-    }, (error) => {
-        console.error("Erro em Metas:", error);
-        carregouMetas = true;
-        verificarFimCarregamento();
-    });
-
-    // 4. Histórico (Este não trava o carregamento principal)
-    if (unsubscribeHistory) unsubscribeHistory();
-    const qHistory = query(collection(baseRef, "conquistas"), orderBy("data", "desc"), limit(20));
-
-    unsubscribeHistory = onSnapshot(qHistory, (snapshot) => {
-        headHistorico.value = null;
-        let tail = null;
-        snapshot.docs.forEach(doc => {
-            const node = new LogNode(doc.data(), doc.id);
-            if (!headHistorico.value) { headHistorico.value = node; tail = node; } 
-            else { tail.proximo = node; tail = node; }
-        });
-    }, (error) => {
-        console.error("Erro no Histórico:", error); // Apenas loga o erro
-    });
-};
-*/
 
 const handleNameUpdate = (newName) => {
     if (user.value) {
@@ -302,24 +288,49 @@ onMounted(() => {
             // Timeout de segurança: Se travar o carregamento, libera em 4s
             setTimeout(() => { if(carregando.value) carregando.value = false; }, 4000);
 
-            // === CORREÇÃO AQUI: OUVINTE EM TEMPO REAL DO PERFIL ===
+            // === VERIFICAÇÃO DE OFENSIVA (STREAK) E CRIAÇÃO DE PERFIL ===
             const userRef = doc(db, 'artifacts', appId, 'users', u.uid);
             
-            // Em vez de getDoc (uma vez), usamos onSnapshot (sempre atualizado)
-            onSnapshot(userRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const dados = docSnap.data();
-                    // Forçamos ser número para evitar bugs visuais
-                    pontuacao.value = Number(dados.pontuacao) || 0;
-                } else {
-                    // Se é o primeiro acesso real, cria o documento
-                    setDoc(userRef, { email: u.email, pontuacao: 0 });
-                    pontuacao.value = 0;
-                }
-            }, (error) => {
-                console.error("Erro ao buscar pontuação:", error);
-            });
+            // Pega a data de hoje no formato limpo "YYYY-MM-DD"
+            const hoje = new Date().toISOString().split('T')[0]; 
             
+            // Lemos o documento do usuário 1 vez ao entrar para checar o último acesso
+            import('firebase/firestore').then(async ({ getDoc, setDoc }) => {
+                const docSnap = await getDoc(userRef);
+                let dadosUsuario = docSnap.exists() ? docSnap.data() : {};
+                
+                let streakBanco = dadosUsuario.streakAtual || 0;
+                const ultimoAcesso = dadosUsuario.ultimoAcesso || '';
+
+                // A matemática do hábito: Só processa se ele ainda não entrou hoje
+                if (ultimoAcesso !== hoje) {
+                    if (ultimoAcesso) {
+                        // Calcula a diferença de dias
+                        const dataUltima = new Date(ultimoAcesso);
+                        const dataHoje = new Date(hoje);
+                        const diffDias = Math.round((dataHoje - dataUltima) / (1000 * 60 * 60 * 24));
+
+                        if (diffDias === 1) {
+                            streakBanco += 1; // Manteve a ofensiva! Entrou no dia seguinte.
+                        } else if (diffDias > 1) {
+                            streakBanco = 1; // Quebrou a ofensiva. Passou mais de 1 dia sem entrar.
+                        }
+                    } else {
+                        streakBanco = 1; // Primeiro acesso da vida dele no sistema
+                    }
+                    
+                    // Salva o perfil ativo (resolvendo o "fantasma"), a nova ofensiva e a data
+                    await setDoc(userRef, { 
+                        perfilAtivo: true, 
+                        streakAtual: streakBanco, 
+                        ultimoAcesso: hoje 
+                    }, { merge: true });
+                }
+                
+                // Repassa o valor para a variável reativa que vai ser enviada para a NavBar
+                streakAtual.value = streakBanco;
+            });
+        
             // Inicia os ouvintes das listas (Receitas, Metas, etc)
             setupListeners(u.uid);
         } else {
@@ -344,7 +355,11 @@ onMounted(() => {
 <template>
     <div class="min-h-screen bg-gray-100 text-gray-800 flex flex-col font-sans">
         
-        <NavBar v-if="user" :user="user" :pontuacao="pontuacao" 
+        <NavBar v-if="user" 
+            :user="user" 
+            :pontuacao="pontuacao" 
+            :currentView="currentView" 
+            :streak="streakAtual"
             @navigate="navigateTo" 
             @logout="handleLogout"
             @open-history="showHistory = true" 
@@ -402,16 +417,24 @@ onMounted(() => {
                 </div>
 
                 <div v-else>
-                    <DashboardHome v-if="currentView === 'home'" :uid="user.uid" :saldo="saldoGlobal"
-                        :resumo="{ receitas, despesas, metas }" @navigate="navigateTo" />
+                    <DashboardHome v-if="currentView === 'home'" 
+                        :uid="user.uid" 
+                        :saldo="saldoGlobal"
+                        :resumo="{ receitas, despesas, metas }" 
+                        @navigate="navigateTo" />
 
-                    <ReceitasManager v-if="currentView === 'receitas'" :uid="user.uid" 
+                    <ReceitasManager v-if="currentView === 'receitas'" 
+                        :uid="user.uid" 
                         :listaReceitas="receitas" 
-                        @back="navigateTo('home')" @points-added="handleAddPoints" />
+                        @back="navigateTo('home')" 
+                        @points-added="handleAddPoints" />
 
-                    <DespesasManager v-if="currentView === 'despesas'" :uid="user.uid" 
-                        :saldo="saldoGlobal" :listaDespesas="despesas"
-                        @back="navigateTo('home')" @points-added="handleAddPoints" />
+                    <DespesasManager v-if="currentView === 'despesas'" 
+                        :uid="user.uid" 
+                        :saldo="saldoGlobal" 
+                        :listaDespesas="despesas"
+                        @back="navigateTo('home')" 
+                        @points-added="handleAddPoints" />
 
                     <MetasManager v-if="currentView === 'metas'" 
                         :uid="user.uid" 
@@ -429,13 +452,18 @@ onMounted(() => {
                         :user="user" 
                         :pontuacao="pontuacao"
                         @back="navigateTo('home')"
-                        @notify="(msg) => { toastMsg = msg; toastAtivo = true; setTimeout(() => toastAtivo = false, 3000); }" />
+                        @notify="(msg) => { toastMsg = msg; toastAtivo = true; window.setTimeout(() => toastAtivo = false, 3000); }" />
 
-                    <InvestimentosManager 
-                        v-if="currentView === 'investimentos'" 
+                    <InvestimentosManager v-if="currentView === 'investimentos'" 
                         :uid="user.uid" 
                         :saldo="saldoGlobal"
                         @back="currentView = 'home'" />
+
+                    <RecorrentesManager v-if="currentView === 'recorrentes'" 
+                        :uid="user.uid" 
+                        @back="navigateTo('home')"
+                        @notify="(msg) => { toastMsg = msg; toastAtivo = true; window.setTimeout(() => toastAtivo = false, 3000); }" />
+
                 </div>
             </div>
         </main>

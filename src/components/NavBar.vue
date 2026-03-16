@@ -5,7 +5,8 @@ import { computed, ref } from 'vue';
 const props = defineProps({
   user: Object,
   pontuacao: Number,
-  currentView: String
+  currentView: String,
+  streak: Number
 });
 
 // 2. O defineEmits ÚNICO. Define quais ações este componente avisa ao pai.
@@ -60,20 +61,34 @@ const menuAberto = ref(false);
       <div class="flex items-center gap-4">
         
         <div class="hidden sm:flex items-center gap-3 border-r border-indigo-500 pr-4 mr-2">
-            <div @click="emit('navigate', 'jornada')" class="flex flex-col min-w-[140px] cursor-pointer hover:scale-105 transition-transform relative"
-                @mouseenter="mostrarDetalhesPatente = true" @mouseleave="mostrarDetalhesPatente = false">
-                <span class="text-[10px] font-black uppercase text-center mb-1" :class="patenteAtual.cor">{{ patenteAtual.nome }}</span>
-                <div class="h-1.5 w-full bg-indigo-800 rounded-full overflow-hidden shadow-inner relative">
-                    <div class="h-full bg-gradient-to-r from-yellow-400 to-yellow-200 transition-all duration-500" :style="{ width: progressoPatente + '%' }"></div>
+            <div @click="emit('navigate', 'jornada')" class="flex flex-col min-w-[160px] cursor-pointer hover:scale-105 transition-transform relative group"
+                @mouseenter="mostrarDetalhesPatente = true" 
+                @mouseleave="mostrarDetalhesPatente = false">
+
+                <div class="flex justify-between items-end mb-1">
+                    <span class="text-[10px] font-black uppercase tracking-tighter text-center mb-1" :class="patenteAtual.cor">
+                      {{ patenteAtual.nome }}
+                    </span>
+                    <span v-if="proximaPatente" class="text-[9px] font-bold text-indigo-200 opacity-80">
+                      Faltam {{ proximaPatente.min - (pontuacao || 0) }} pts
+                    </span>
+                    <span v-else class="text-[9px] font-bold text-yellow-300 animate-pulse">
+                      NÍVEL MÁXIMO!
+                    </span>
+                </div>
+
+                <div class="h-2 w-full bg-indigo-800 rounded-full overflow-hidden shadow-inner border border-indigo-500/300">
+                    <div class="h-full bg-gradient-to-r from-yellow-500 to-yellow-400 transition-all duration-700 ease-out" 
+                    :style="{ width: progressoPatente + '%' }">
+                  </div>
                 </div>
                 
-                <div v-if="mostrarDetalhesPatente" class="absolute top-8 left-0 bg-white text-gray-800 p-3 rounded-lg shadow-xl w-64 z-50 border border-indigo-100 text-xs text-left cursor-default">
+                <div v-if="mostrarDetalhesPatente" class="absolute top-10 left-0 bg-white text-gray-800 p-3 rounded-lg shadow-xl w-64 z-50 border border-indigo-100 text-xs text-left cursor-default">
                     <p class="font-bold text-indigo-900 mb-1">{{ patenteAtual.nome }}</p>
                     <p class="mb-2 italic">"{{ patenteAtual.msg }}"</p>
-                    <div v-if="proximaPatente">
-                        <p class="text-gray-500">Próximo nível: <span class="font-bold">{{ proximaPatente.nome }}</span></p>
-                        <p class="text-indigo-600 font-bold">Faltam {{ proximaPatente.min - (pontuacao || 0) }} pts</p>
-                    </div>
+                    <p v-if="proximaPatente" class="text-indigo-600 font-bold border-t pt-2"> 
+                      Próxima Patente: {{ proximaPatente.nome }} ({{ proximaPatente.min }} pts)
+                    </p>
                 </div>
             </div>
         </div>
@@ -82,6 +97,15 @@ const menuAberto = ref(false);
             <i class="ph ph-trend-up"></i>
             <span class="hidden md:inline font-bold">Investimentos</span>
         </button>
+
+        <div class="flex items-center gap-1 bg-orange-100/10 border border-orange-500/30 px-3 py-1.5 rounded-full tooltip-trigger cursor-default relative group" title="Dias seguidos acessando o sistema">
+            <i class="ph-fill ph-fire text-orange-500 text-lg animate-pulse"></i>
+            <span class="text-orange-400 font-black text-sm">{{ streak || 0 }}</span>
+            
+            <div class="absolute top-full mt-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-50">
+                Ofensiva Diária
+            </div>
+        </div>
 
         <span @click="emit('open-history')" class="bg-indigo-700 px-3 py-1.5 rounded-full text-sm font-bold cursor-pointer hover:bg-indigo-800 transition active:scale-95 flex items-center gap-1">
           <i class="ph ph-star-fill text-yellow-400"></i> {{ pontuacao }} pts
