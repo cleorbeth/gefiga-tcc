@@ -56,7 +56,7 @@ class LogNode {
         this.pontos = data.pontos;
         // Se vier timestamp do firebase, converte. Se não, usa hora atual.
         //this.data = data.data?.toDate ? data.data.toDate().toLocaleTimeString('pt-BR') : (data.hora || 'Agora'); 
-        this.data = data.data?.toDate ? data.data.toDate().toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : 'Agora';
+        this.data = data.data?.toDate ? data.data.toDate().toLocaleString('pt-BR', {hour: '2-digit', minute:'2-digit', date: 'short'}) : 'Agora';
         this.proximo = null;
     }
 }

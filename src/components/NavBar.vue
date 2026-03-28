@@ -15,10 +15,10 @@ const emit = defineEmits(['navigate', 'logout', 'open-history']);
 // SISTEMA DE PATENTES (Gamificação)
 const patentes = [
   { min: 0, nome: "Iniciante", cor: "text-gray-200", msg: "Dando os primeiros passos no controle." },
-  { min: 1000, nome: "Aprendiz", cor: "text-green-300", msg: "Já entende a importância de registrar." },
-  { min: 3000, nome: "Poupador", cor: "text-blue-300", msg: "Suas metas estão ficando mais próximas!" },
-  { min: 6000, nome: "Investidor", cor: "text-yellow-300", msg: "O dinheiro trabalha para você." },
-  { min: 10000, nome: "Mestre", cor: "text-purple-300", msg: "Controle financeiro total." }
+  { min: 50, nome: "Aprendiz", cor: "text-green-300", msg: "Já entende a importância de registrar." },
+  { min: 100, nome: "Poupador", cor: "text-blue-300", msg: "Suas metas estão ficando mais próximas!" },
+  { min: 150, nome: "Investidor", cor: "text-yellow-300", msg: "O dinheiro trabalha para você." },
+  { min: 200, nome: "Mestre", cor: "text-purple-300", msg: "Controle financeiro total." }
 ];
 
 // Calcula a patente atual baseada nos pontos

@@ -229,7 +229,7 @@ const zerarTudo = async (apenasPontos = true) => {
     } catch (e) { alert("Erro: " + e.message); } finally { processandoReset.value = false; }
 };
 
-const abrirEnquete = () => window.open('https://forms.google.com/', '_blank');
+const abrirEnquete = () => window.open('https://docs.google.com/forms/d/e/1FAIpQLSf7au5gxxGCaicJOj1CxqERFgxUlFcxRZso1uQ5YXS2--bDqA/viewform?usp=publish-editor', '_blank');
 </script>
 
 <template>

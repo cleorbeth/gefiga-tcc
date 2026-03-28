@@ -15,7 +15,7 @@ const patentes = [
     msg: "Todo grande investidor começou do zero. Aqui você está dando os primeiros passos para entender para onde vai o seu dinheiro." 
   },
   { 
-    min: 1000, 
+    min: 50, 
     nome: "Aprendiz", 
     icone: "ph-student",
     cor: "text-green-600", 
@@ -23,7 +23,7 @@ const patentes = [
     msg: "Você já criou o hábito de registrar! Agora você começa a entender como o controle financeiro evita surpresas no fim do mês." 
   },
   { 
-    min: 3000, 
+    min: 100, 
     nome: "Poupador", 
     icone: "ph-piggy-bank",
     cor: "text-blue-600", 
@@ -31,7 +31,7 @@ const patentes = [
     msg: "O dinheiro está sobrando! Você aprendeu a cortar gastos supérfluos e suas metas de viagem ou compras estão ficando reais." 
   },
   { 
-    min: 6000, 
+    min: 150, 
     nome: "Investidor", 
     icone: "ph-trend-up",
     cor: "text-yellow-600", 
@@ -39,7 +39,7 @@ const patentes = [
     msg: "O dinheiro trabalha para você. Sua disciplina transformou suas finanças em uma ferramenta de liberdade." 
   },
   { 
-    min: 10000, 
+    min: 200, 
     nome: "Mestre", 
     icone: "ph-crown",
     cor: "text-purple-600", 
@@ -61,7 +61,7 @@ const proximaPatente = computed(() => {
 
 // Calcula porcentagem para a barra de progresso global
 const progressoGeral = computed(() => {
-    const max = 10000;
+    const max = 200;
     const pts = props.pontuacao || 0;
     return Math.min(100, (pts / max) * 100);
 });
@@ -105,7 +105,7 @@ const isDesbloqueado = (p) => (props.pontuacao || 0) >= p.min;
             <div class="mt-8">
                 <div class="flex justify-between text-xs text-indigo-300 mb-2 font-bold uppercase">
                     <span>Início (0)</span>
-                    <span>Mestre (10.000)</span>
+                    <span>Mestre (200)</span>
                 </div>
                 <div class="w-full h-3 bg-indigo-950 rounded-full overflow-hidden border border-indigo-800">
                     <div class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-yellow-400 transition-all duration-1000 ease-out"
